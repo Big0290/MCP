@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  mcp-server:
+    build: .
+    ports:
+      - '8000:8000' # Expose MCP server port
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=postgresql://mcp_user:mcp_password@postgres:5432/mcp_tracker
+      - ENABLE_BACKGROUND_MONITORING=true
+      - MONITORING_INTERVAL_SECONDS=300
+      - ENABLE_AUTOMATIC_METADATA=true
+      - LOG_LEVEL=INFO
+      - MCP_TRANSPORT=http # Use HTTP transport for external access
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      - postgres
+    command: ['python', 'main.py']
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8000/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: mcp_tracker
+      POSTGRES_USER: mcp_user
+      POSTGRES_PASSWORD: mcp_password
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-postgres.sql:/docker-entrypoint-initdb.d/init-postgres.sql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U mcp_user -d mcp_tracker']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

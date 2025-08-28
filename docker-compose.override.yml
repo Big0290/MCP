@@ -1,0 +1,24 @@
+# Docker Compose Override for Conversation Tracking Testing
+# This file allows you to easily override settings for testing
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.override.yml up
+
+version: '3.8'
+
+services:
+  mcp-agent-tracker:
+    environment:
+      # Override conversation tracking settings for testing
+      - ENABLE_BACKGROUND_MONITORING=true
+      - MONITORING_INTERVAL_SECONDS=60 # Faster monitoring for testing
+      - ENABLE_AUTOMATIC_METADATA=true
+      - LOG_LEVEL=DEBUG # More verbose logging for testing
+    volumes:
+      # Mount source code for development/testing
+      - .:/app
+      # Mount logs for easy access
+      - ./logs:/app/logs
+    # Add labels for easy identification
+    labels:
+      - 'com.mcp.tracking.enabled=true'
+      - 'com.mcp.tracking.monitoring=true'
+      - 'com.mcp.tracking.metadata=true'

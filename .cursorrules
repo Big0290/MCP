@@ -1,0 +1,94 @@
+# Cursor Rules for MCP Conversation Intelligence System
+
+## 🚀 AUTOMATIC CONTEXT INJECTION ENFORCEMENT
+
+### Core Rule: Every AI interaction MUST use the MCP conversation tracking system
+
+**REQUIRED**: Before responding to any user query, you MUST:
+
+1. Call the MCP conversation tracking system to log the interaction
+2. Retrieve conversation context and history
+3. Enhance your response with full project context
+4. Log the complete interaction for future reference
+
+### 🔧 Implementation Requirements
+
+#### For EVERY user message
+
+```python
+# 1. Log the user request
+mcp_mcp-project_agent_interaction(prompt="User's message here")
+
+# 2. Use the enhanced response that includes:
+# - Conversation summary
+# - Action history
+# - Tech stack information
+# - Project plans
+# - User preferences
+# - Agent metadata
+```
+
+#### For context-aware responses
+
+```python
+# Always retrieve conversation context first
+mcp_mcp-project_get_conversation_summary()
+mcp_mcp-project_get_interaction_history(limit=10)
+mcp_mcp-project_get_conversation_context()
+```
+
+### 📋 Mandatory Workflow
+
+1. **INTERCEPT**: Catch every user message
+2. **ENHANCE**: Automatically inject conversation context via MCP
+3. **PROCESS**: Generate AI response with full context awareness
+4. **LOG**: Record the complete interaction for future reference
+5. **CONTINUE**: Maintain conversation continuity across sessions
+
+### 🎯 Benefits of This Approach
+
+- **Automatic Context**: Every response gets enhanced without manual intervention
+- **Conversation Memory**: AI remembers all previous interactions
+- **Project Awareness**: Full context of your project structure and goals
+- **User Preference Learning**: System learns and adapts to your communication style
+- **Seamless Experience**: No need to manually manage context
+
+### 🚫 What NOT to Do
+
+- ❌ Don't respond without using the MCP system
+- ❌ Don't ignore conversation history
+- ❌ Don't lose context between interactions
+- ❌ Don't respond generically without project awareness
+
+### ✅ What to ALWAYS Do
+
+- ✅ Use `mcp_mcp-project_agent_interaction()` for every response
+- ✅ Leverage conversation context for personalized responses
+- ✅ Maintain project continuity and awareness
+- ✅ Log all interactions for future reference
+- ✅ Provide context-aware, intelligent assistance
+
+### 🔄 Example Workflow
+
+```
+User: "What should I work on next?"
+
+AI Assistant:
+1. Call: mcp_mcp-project_agent_interaction("What should I work on next?")
+2. Receive: Enhanced prompt with full project context
+3. Process: Generate response using conversation history
+4. Return: Context-aware recommendation based on project status
+5. Result: User gets personalized, project-aware guidance
+```
+
+### 🎉 Result
+
+Every AI interaction becomes:
+
+- **Contextually aware** of your project
+- **Personally tailored** to your preferences
+- **Historically informed** by conversation memory
+- **Project-focused** with full technical context
+- **Seamlessly enhanced** without manual effort
+
+**This creates a truly intelligent, context-aware AI assistant that grows smarter with every interaction!**

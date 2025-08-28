@@ -1,0 +1,17 @@
+# Requirements for MCP Agent Tracker with Conversation Tracking
+# This file provides a backup way to install dependencies
+
+# Core dependencies
+httpx>=0.28.1
+mcp[cli]>=1.13.1
+sqlalchemy>=2.0.0
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# Database drivers
+psycopg2-binary>=2.9.0  # For PostgreSQL support
+pymysql>=1.1.0          # For MySQL support
+
+# Optional: For better performance
+# psycopg2-binary>=2.9.0  # Alternative PostgreSQL driver
+# cryptography>=3.4.8      # For encrypted connections
