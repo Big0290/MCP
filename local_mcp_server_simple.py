@@ -36,11 +36,12 @@ def enhanced_chat(user_message: str) -> str:
         # Use the centralized prompt generator for full context enhancement
         from prompt_generator import prompt_generator
         
-        # Generate enhanced prompt with comprehensive context
+        # Generate enhanced prompt with APPE (Adaptive Prompt Precision Engine)
         enhanced_prompt = prompt_generator.generate_enhanced_prompt(
             user_message=user_message,
-            context_type="comprehensive",
-            force_refresh=True
+            context_type="adaptive",  # 🚀 NOW USING APPE!
+            force_refresh=True,
+            use_appe=True
         )
         
         return enhanced_prompt

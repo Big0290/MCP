@@ -1,0 +1,24 @@
+{
+  "debugging_problem_solving": {
+    "task_type": "debugging",
+    "strategy": "problem_solving",
+    "user_feedback": 0.9,
+    "response_quality": 0.8,
+    "execution_time": 0.0001380443572998047,
+    "token_efficiency": 1.0,
+    "success_count": 1,
+    "last_used": "2025-08-29T22:21:17.116089",
+    "effectiveness_score": 0.8800000000000001
+  },
+  "code_generation_precision_technical": {
+    "task_type": "code_generation",
+    "strategy": "precision_technical",
+    "user_feedback": 0.9,
+    "response_quality": 0.85,
+    "execution_time": 0.0001289844512939453,
+    "token_efficiency": 1.0,
+    "success_count": 1,
+    "last_used": "2025-08-29T22:22:26.945756",
+    "effectiveness_score": 0.9000000000000001
+  }
+}

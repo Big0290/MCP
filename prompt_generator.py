@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-🚀 Centralized Prompt Generator System
+🚀 Centralized Prompt Generator System with Adaptive Precision Engine
 
 This module provides a unified interface for generating enhanced prompts with comprehensive context.
 It consolidates all prompt generation logic from various files into one maintainable system.
@@ -11,6 +11,9 @@ Features:
 - User preferences and learning patterns
 - Multiple enhancement strategies
 - Performance monitoring and caching
+- NEW: Adaptive Prompt Precision Engine (APPE) integration
+- NEW: Task-aware prompt optimization
+- NEW: Behavioral steering and success pattern learning
 """
 
 import logging
@@ -18,6 +21,19 @@ import json
 from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict
+
+# Import the new Adaptive Prompt Precision Engine
+try:
+    from adaptive_prompt_engine import (
+        AdaptivePromptEngine, 
+        get_adaptive_prompt_engine,
+        enhance_prompt_with_appe,
+        learn_from_appe_interaction
+    )
+    APPE_AVAILABLE = True
+except ImportError:
+    APPE_AVAILABLE = False
+    print("Warning: Adaptive Prompt Precision Engine not available")
 
 logger = logging.getLogger(__name__)
 
@@ -60,25 +76,28 @@ class PromptGenerator:
         }
         self.context_cache = {}
         self.enhancement_strategies = {
+            'adaptive': self._generate_smart_prompt,  # NEW: APPE-powered adaptive strategy
             'comprehensive': self._generate_comprehensive_prompt,
             'technical': self._generate_technical_prompt,
             'conversation': self._generate_conversation_prompt,
             'smart': self._generate_smart_prompt,
-            'dynamic': self._generate_smart_prompt,  # New dynamic strategy
+            'dynamic': self._generate_smart_prompt,  # Dynamic strategy
             'minimal': self._generate_minimal_prompt
         }
     
     def generate_enhanced_prompt(self, 
                                user_message: str, 
-                               context_type: str = "dynamic",  # Changed default to dynamic
-                               force_refresh: bool = False) -> str:
+                               context_type: str = "adaptive",  # Changed default to adaptive (APPE)
+                               force_refresh: bool = False,
+                               use_appe: bool = True) -> str:
         """
         Generate an enhanced prompt with the specified context type
         
         Args:
             user_message: The original user message
-            context_type: Type of context enhancement (comprehensive, technical, conversation, smart, minimal)
+            context_type: Type of context enhancement (adaptive, comprehensive, technical, conversation, smart, minimal)
             force_refresh: Force refresh context even if cached
+            use_appe: Use Adaptive Prompt Precision Engine when available
             
         Returns:
             Enhanced prompt string
@@ -86,6 +105,31 @@ class PromptGenerator:
         start_time = datetime.now()
         
         try:
+            # NEW: Try APPE first if available and requested
+            if use_appe and APPE_AVAILABLE and context_type == "adaptive":
+                try:
+                    # Generate context data for APPE
+                    context = self._gather_context_data(user_message, context_type)
+                    
+                    # Convert to APPE format
+                    appe_context = self._convert_to_appe_context(context)
+                    
+                    # Use APPE for optimal prompt generation
+                    enhanced_prompt = enhance_prompt_with_appe(user_message, appe_context)
+                    
+                    # Update statistics
+                    self._update_stats(True, start_time)
+                    self.enhancement_stats['appe_generations'] = self.enhancement_stats.get('appe_generations', 0) + 1
+                    
+                    logger.info(f"🚀 Generated APPE prompt: {len(user_message)} -> {len(enhanced_prompt)} chars")
+                    
+                    return enhanced_prompt
+                    
+                except Exception as e:
+                    logger.warning(f"APPE generation failed, falling back to standard: {e}")
+                    # Fall through to standard generation
+            
+            # Standard prompt generation (existing logic)
             # Check cache first (unless force refresh)
             cache_key = f"{hash(user_message)}_{context_type}"
             if not force_refresh and cache_key in self.context_cache:
@@ -692,9 +736,57 @@ Error: {error_message}
         else:
             self.enhancement_stats['failed_generations'] += 1
     
+    def _convert_to_appe_context(self, context: PromptContext) -> Dict[str, Any]:
+        """Convert PromptContext to APPE-compatible format."""
+        return {
+            "conversation_summary": context.conversation_summary,
+            "action_history": context.action_history,
+            "tech_stack": context.tech_stack,
+            "project_plans": context.project_plans,
+            "user_preferences": context.user_preferences,
+            "agent_metadata": context.agent_metadata,
+            "recent_interactions": context.recent_interactions,
+            "project_patterns": context.project_patterns,
+            "best_practices": context.best_practices,
+            "common_issues": context.common_issues,
+            "development_workflow": context.development_workflow,
+            "confidence_score": context.confidence_score,
+            "project_structure": context.project_structure,
+            "project_overview": context.project_overview,
+            "function_summary": context.function_summary,
+            "class_summary": context.class_summary
+        }
+    
+    def learn_from_interaction(self, 
+                             user_message: str, 
+                             enhanced_prompt: str,
+                             user_feedback: float,
+                             response_quality: float,
+                             execution_time: float):
+        """Learn from interaction outcomes to improve future prompts."""
+        if APPE_AVAILABLE:
+            try:
+                learn_from_appe_interaction(
+                    user_message, enhanced_prompt, user_feedback, response_quality, execution_time
+                )
+                logger.info(f"📚 APPE learned from interaction (feedback: {user_feedback}, quality: {response_quality})")
+            except Exception as e:
+                logger.warning(f"Failed to update APPE learning: {e}")
+    
+    def get_appe_status(self) -> Dict[str, Any]:
+        """Get APPE system status if available."""
+        if APPE_AVAILABLE:
+            try:
+                appe = get_adaptive_prompt_engine()
+                return appe.get_system_status()
+            except Exception as e:
+                return {"error": f"Failed to get APPE status: {e}"}
+        else:
+            return {"status": "not_available", "message": "APPE not installed"}
+    
     def get_stats(self) -> Dict[str, Any]:
         """Get current generation statistics"""
-        return {
+        base_stats = {
             **self.enhancement_stats,
             'cache_size': len(self.context_cache),
             'success_rate': (
@@ -704,8 +796,19 @@ Error: {error_message}
             'cache_hit_rate': (
                 f"{self.enhancement_stats['context_cache_hits']}/{self.enhancement_stats['context_cache_hits'] + self.enhancement_stats['context_cache_misses']}"
                 if (self.enhancement_stats['context_cache_hits'] + self.enhancement_stats['context_cache_misses']) > 0 else "0/0"
-            )
+            ),
+            'appe_available': APPE_AVAILABLE
         }
+        
+        # Add APPE statistics if available
+        if APPE_AVAILABLE:
+            try:
+                appe_status = self.get_appe_status()
+                base_stats['appe_status'] = appe_status
+            except Exception as e:
+                base_stats['appe_error'] = str(e)
+        
+        return base_stats
     
     def clear_cache(self):
         """Clear the context cache"""
