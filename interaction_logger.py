@@ -8,10 +8,38 @@ from contextlib import contextmanager
 from functools import wraps
 import threading
 
-from models import get_session_factory, AgentInteraction, Session
-from config import Config
-from context_manager import context_manager
-from session_manager import session_manager
+# Try to import dependencies, but don't fail if they're not available
+try:
+    from models_unified import get_session_factory, AgentInteraction, Session
+    MODELS_AVAILABLE = True
+except ImportError:
+    MODELS_AVAILABLE = False
+    print("⚠️ SQLAlchemy models not available - using fallback")
+
+try:
+    from config import Config
+    CONFIG_AVAILABLE = True
+except ImportError:
+    CONFIG_AVAILABLE = False
+    print("⚠️ Config not available - using defaults")
+    # Create a mock config
+    class Config:
+        USER_ID = "anonymous"
+        ENABLE_AUTOMATIC_METADATA = True
+
+try:
+    from context_manager import seamless_context_manager
+    CONTEXT_MANAGER_AVAILABLE = True
+except ImportError:
+    CONTEXT_MANAGER_AVAILABLE = False
+    print("⚠️ Context manager not available - using fallback")
+
+try:
+    from session_manager import session_manager
+    SESSION_MANAGER_AVAILABLE = True
+except ImportError:
+    SESSION_MANAGER_AVAILABLE = False
+    print("⚠️ Session manager not available - using fallback")
 
 class InteractionLogger:
     """Enhanced service for automatically logging client-agent conversations with full content retention"""
@@ -92,35 +120,48 @@ class InteractionLogger:
             full_content = f"Response: {agent_response}"
         
         try:
-            with self.session_factory() as db_session:
-                interaction = AgentInteraction(
-                    session_id=session_id,
-                    user_id=self._user_id,
-                    interaction_type=interaction_type,
-                    tool_name=tool_name,
-                    prompt=client_request,  # Store full prompt
-                    response=agent_response,  # Store full response
-                    full_content=full_content,  # Store complete interaction content
-                    parameters=parameters,
-                    execution_time_ms=execution_time_ms,
-                    error_message=error_message,
-                    status=status,
-                    meta_data=auto_metadata
-                )
+            if MODELS_AVAILABLE and self.session_factory:
+                with self.session_factory() as db_session:
+                    interaction = AgentInteraction(
+                        session_id=session_id,
+                        user_id=self._user_id,
+                        interaction_type=interaction_type,
+                        tool_name=tool_name,
+                        prompt=client_request,  # Store full prompt
+                        response=agent_response,  # Store full response
+                        full_content=full_content,  # Store complete interaction content
+                        parameters=parameters,
+                        execution_time_ms=execution_time_ms,
+                        error_message=error_message,
+                        status=status,
+                        meta_data=auto_metadata
+                    )
+                    
+                    db_session.add(interaction)
+                    
+                    # Update session activity using session manager
+                    if SESSION_MANAGER_AVAILABLE:
+                        session_manager.update_session_activity(session_id, 1)
+                    
+                    db_session.commit()
+                    
+                    # Trigger context update after logging
+                    if CONTEXT_MANAGER_AVAILABLE:
+                        try:
+                            seamless_context_manager.create_or_update_context(session_id, self._user_id)
+                        except Exception as e:
+                            # Don't fail if context update fails
+                            print(f"Warning: Failed to update context: {e}", file=os.sys.stderr)
+            else:
+                # Fallback: just print the interaction
+                print(f"📝 [FALLBACK LOG] {interaction_type}: {client_request[:100] if client_request else 'No request'} -> {agent_response[:100] if agent_response else 'No response'}")
                 
-                db_session.add(interaction)
-                
-                # Update session activity using session manager
-                session_manager.update_session_activity(session_id, 1)
-                
-                db_session.commit()
-                
-                # Trigger context update after logging
-                try:
-                    context_manager.create_or_update_context(session_id, self._user_id)
-                except Exception as e:
-                    # Don't fail if context update fails
-                    print(f"Warning: Failed to update context: {e}", file=os.sys.stderr)
+                # Try to trigger context update even without database logging
+                if CONTEXT_MANAGER_AVAILABLE:
+                    try:
+                        seamless_context_manager.create_or_update_context(session_id, self._user_id)
+                    except Exception as e:
+                        print(f"Warning: Failed to update context: {e}", file=os.sys.stderr)
                 
         except Exception as e:
             # Log error but don't fail the main application
@@ -186,7 +227,7 @@ class InteractionLogger:
             return None
         
         try:
-            return context_manager.get_context_for_injection(self._session_id, user_id or self._user_id)
+            return seamless_context_manager.get_context_for_injection(self._session_id, user_id or self._user_id)
         except Exception as e:
             print(f"Warning: Failed to get context for injection: {e}", file=os.sys.stderr)
             return None
@@ -198,7 +239,7 @@ class InteractionLogger:
             return base_prompt
         
         try:
-            return context_manager.inject_context_into_prompt(base_prompt, context)
+            return seamless_context_manager.inject_context_into_prompt(base_prompt, context)
         except Exception as e:
             print(f"Warning: Failed to inject context: {e}", file=os.sys.stderr)
             return base_prompt

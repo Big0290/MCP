@@ -91,12 +91,11 @@ class AutoContextWrapper:
             )
             
             # Get recent interactions for context
-            from models_local import get_session_factory, AgentInteraction
+            from models_unified import get_session_factory, AgentInteraction
             
-            with get_session_factory()() as db_session:
-                recent_interactions = db_session.query(AgentInteraction).order_by(
-                    AgentInteraction.timestamp.desc()
-                ).limit(20).all()
+            # Use local storage for now since database queries aren't working
+            from models_unified import get_local_interactions
+            recent_interactions = get_local_interactions(20)
             
             # Generate context components based on type
             if context_type == "technical":
@@ -132,7 +131,22 @@ AGENT METADATA: {_get_agent_metadata()}
     
     def _build_enhanced_prompt(self, original_prompt: str, enhanced_context: str) -> str:
         """Build the final enhanced prompt with injected context"""
-        enhanced_prompt = f"""
+        try:
+            # Use the centralized prompt generator for auto-enhanced prompts
+            from prompt_generator import prompt_generator
+            
+            # Generate auto-enhanced prompt
+            enhanced_prompt = prompt_generator.generate_enhanced_prompt(
+                user_message=original_prompt,
+                context_type="comprehensive",
+                force_refresh=False
+            )
+            
+            return enhanced_prompt
+            
+        except ImportError:
+            # Fallback to original implementation if prompt generator not available
+            enhanced_prompt = f"""
 === AUTO-ENHANCED PROMPT ===
 
 USER REQUEST: {original_prompt}
@@ -149,9 +163,9 @@ Please respond to the user's request above, taking into account:
 
 Provide a comprehensive, context-aware response that builds upon our conversation history.
 === END ENHANCED PROMPT ===
-        """.strip()
-        
-        return enhanced_prompt
+            """.strip()
+            
+            return enhanced_prompt
     
     def _update_stats(self, success: bool, start_time: datetime):
         """Update enhancement statistics"""

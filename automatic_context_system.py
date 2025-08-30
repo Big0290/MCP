@@ -138,12 +138,11 @@ class RealTimeContextInjector:
             )
             
             # Get recent interactions for context
-            from models_local import get_session_factory, AgentInteraction
+            from models_unified import get_session_factory, AgentInteraction
             
-            with get_session_factory()() as db_session:
-                recent_interactions = db_session.query(AgentInteraction).order_by(
-                    AgentInteraction.timestamp.desc()
-                ).limit(10).all()  # Reduced for real-time performance
+            # Use local storage for now since database queries aren't working
+            from models_unified import get_local_interactions
+            recent_interactions = get_local_interactions(10)  # Reduced for real-time performance
             
             # Generate context based on type
             if context_type == "technical":

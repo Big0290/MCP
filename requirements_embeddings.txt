@@ -1,0 +1,47 @@
+# Embedding System Dependencies for MCP Conversation Intelligence
+# 
+# This file contains the dependencies needed for the semantic embedding capabilities
+# in the MCP conversation intelligence system.
+
+# Core embedding dependencies
+sentence-transformers>=2.2.0
+numpy>=1.21.0
+
+# Vector similarity search (optional but recommended)
+faiss-cpu>=1.7.0
+
+# Alternative vector search (if FAISS is not available)
+scikit-learn>=1.0.0
+
+# Database and data handling
+sqlite3  # Usually included with Python
+dataclasses  # Python 3.7+ (usually included)
+
+# Logging and utilities
+logging  # Usually included with Python
+threading  # Usually included with Python
+hashlib  # Usually included with Python
+json  # Usually included with Python
+datetime  # Usually included with Python
+typing  # Python 3.5+ (usually included)
+
+# Development and testing dependencies (optional)
+pytest>=6.0.0
+pytest-cov>=2.0.0
+
+# Performance optimization (optional)
+numba>=0.56.0
+
+# Alternative embedding models (optional)
+transformers>=4.20.0
+torch>=1.9.0
+
+# Note: Some packages like sqlite3, logging, threading, hashlib, json, 
+# datetime, and typing are part of Python's standard library and don't 
+# need to be installed separately.
+#
+# To install the required packages:
+# pip install -r requirements_embeddings.txt
+#
+# For development with all optional dependencies:
+# pip install -r requirements_embeddings.txt[dev]

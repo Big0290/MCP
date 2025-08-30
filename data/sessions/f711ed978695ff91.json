@@ -1,0 +1,16 @@
+{
+  "session_id": "f711ed978695ff91",
+  "user_id": "anonymous",
+  "created_at": "2025-08-28T23:48:57.133582",
+  "last_activity": "2025-08-29T00:01:12.243471",
+  "total_interactions": 7,
+  "session_file_path": "data/sessions/f711ed978695ff91.json",
+  "metadata": {
+    "container_id": "unknown",
+    "environment": "production",
+    "created_by": "session_manager"
+  },
+  "context_summary": null,
+  "active_topics": null,
+  "user_preferences": null
+}

@@ -7,31 +7,37 @@ The **Prompt Processor** is a powerful new tool that automatically enhances user
 ## ✨ Features
 
 ### **1. Conversation Summary**
+
 - Analyzes current conversation state
 - Tracks recent topics and interactions
 - Provides context-aware summaries
 
 ### **2. Action History**
+
 - Records detailed steps taken
 - Tracks user requests and agent responses
 - Maintains conversation flow history
 
 ### **3. Tech Stack Definition**
+
 - Documents your current technology stack
 - Includes Python, SQLite, MCP, SQLAlchemy
 - Tracks dependencies and capabilities
 
 ### **4. Project Plans & Objectives**
+
 - Maintains list of current goals
 - Tracks completion status
 - Shows progress on key initiatives
 
 ### **5. User Preferences**
+
 - Stores your development preferences
 - Remembers tool choices (SQLite over PostgreSQL)
 - Tracks coding style preferences
 
 ### **6. Agent Metadata**
+
 - Friendly name: **Johny**
 - Agent ID and capabilities
 - Current status and version
@@ -160,13 +166,13 @@ enhanced_prompt = process_prompt_with_context("Your message here")
 def chat_with_context(user_input: str):
     # Step 1: Process with context
     enhanced_prompt = process_prompt_with_context(user_input)
-    
+
     # Step 2: Send to AI assistant
     ai_response = send_to_ai_assistant(enhanced_prompt)
-    
+
     # Step 3: Log everything
     log_conversation(user_input, enhanced_prompt, ai_response)
-    
+
     return ai_response
 ```
 

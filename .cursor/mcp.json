@@ -1,9 +1,9 @@
 {
   "mcpServers": {
     "mcp-project": {
-      "command": "/Users/jonathanmorand/Documents/ProjectsFolder/MCP_FOLDER/MCP/MCP/.venv/bin/python",
+      "command": "/Users/jonathanmorand/Documents/ProjectsFolder/MCP_FOLDER/MCP/MCP/.venv/bin/python3",
       "args": [
-        "/Users/jonathanmorand/Documents/ProjectsFolder/MCP_FOLDER/MCP/MCP/local_mcp_server_simple.py"
+        "/Users/jonathanmorand/Documents/ProjectsFolder/MCP_FOLDER/MCP/MCP/main.py"
       ]
     }
   }

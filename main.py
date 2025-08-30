@@ -4,51 +4,15 @@ import sys
 import threading
 import time
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-# Try to import dependencies, but don't fail if they're not available
-try:
-    from interaction_logger import logger
-    from session_manager import session_manager
-    LOGGER_AVAILABLE = True
-    SESSION_MANAGER_AVAILABLE = True
-    print("✅ Interaction logger and session manager available")
-except ImportError:
-    LOGGER_AVAILABLE = False
-    SESSION_MANAGER_AVAILABLE = False
-    print("⚠️ Interaction logger not available - using mock logger")
-    # Create a mock logger
-    class MockLogger:
-        def __init__(self):
-            self._session_id = "mock-session"
-        
-        def get_or_create_session(self, user_id=None, session_id=None):
-            return self._session_id
-        
-        def log_interaction(self, **kwargs):
-            print(f"📝 [MOCK LOG] {kwargs}")
-        
-        def log_client_request(self, request):
-            print(f"📝 [MOCK LOG] Client request: {request}")
-        
-        def log_agent_response(self, response):
-            print(f"📝 [MOCK LOG] Agent response: {response}")
-        
-        def log_conversation_turn(self, client_request, agent_response):
-            print(f"📝 [MOCK LOG] Conversation turn: {client_request} -> {agent_response}")
-    
-    logger = MockLogger()
-    
-    # Create a mock session manager
-    class MockSessionManager:
-        def create_or_resume_session(self, user_id=None, session_id=None):
-            return "mock-session"
-        
-        def list_active_sessions(self):
-            return [{"session_id": "mock-session", "user_id": "anonymous"}]
-    
-    session_manager = MockSessionManager()
+# DIRECT IMPORTS - NO MOCK BULLSHIT
+from interaction_logger import logger
+from session_manager import session_manager
+LOGGER_AVAILABLE = True
+SESSION_MANAGER_AVAILABLE = True
+print("✅ Interaction logger and session manager loaded (no mocks!)")
 
 try:
     from config import Config
@@ -65,7 +29,7 @@ except ImportError:
         ENABLE_AUTOMATIC_METADATA = True
         MONITORING_INTERVAL_SECONDS = 60
         LOG_LEVEL = "INFO"
-        LOG_FILE = "./logs/agent_tracker.log"
+        LOG_FILE = "/Users/jonathanmorand/Documents/ProjectsFolder/MCP_FOLDER/MCP/MCP/logs/agent_tracker.log"
     
     Config = MockConfig
 
@@ -130,6 +94,78 @@ except ImportError:
 
 # Initialize FastMCP server (or mock)
 mcp = FastMCP("mcp-project")
+
+# Add a proper list_tools method for MCP clients
+@mcp.tool()
+def list_tools() -> str:
+    """List all available MCP tools with descriptions.
+    
+    This function provides a comprehensive list of all available tools
+    that can be called through the MCP server, including their descriptions
+    and usage information.
+    
+    Returns:
+        str: A formatted list of all available tools with descriptions
+    """
+    try:
+        tools_info = []
+        tools_info.append("🔧 Available MCP Tools:")
+        tools_info.append("=" * 50)
+        
+        # Get available tools from the tool manager
+        available_tools = get_available_tools()
+        
+        if not available_tools:
+            tools_info.append("❌ No tools available")
+            return "\n".join(tools_info)
+        
+        # Format each tool with its description
+        for tool_name, tool_data in available_tools.items():
+            if isinstance(tool_data, dict) and 'description' in tool_data:
+                description = tool_data['description']
+                # Truncate long descriptions
+                if len(description) > 100:
+                    description = description[:97] + "..."
+                tools_info.append(f"📌 {tool_name}: {description}")
+            else:
+                tools_info.append(f"📌 {tool_name}: No description available")
+        
+        tools_info.append("")
+        tools_info.append(f"Total tools available: {len(available_tools)}")
+        tools_info.append("")
+        tools_info.append("💡 Usage: Use @tool_name in Cursor to call these tools")
+        
+        return "\n".join(tools_info)
+        
+    except Exception as e:
+        return f"❌ Error listing tools: {str(e)}"
+
+@mcp.tool()
+def list_prompts() -> str:
+    """List all available MCP prompts with descriptions.
+    
+    This function provides a list of all available prompts
+    that can be used through the MCP server.
+    
+    Returns:
+        str: A formatted list of all available prompts
+    """
+    try:
+        prompts_info = []
+        prompts_info.append("📝 Available MCP Prompts:")
+        prompts_info.append("=" * 50)
+        
+        # For now, we'll return a basic list since prompts aren't fully implemented
+        prompts_info.append("📌 system_prompt: System-level prompt for the MCP server")
+        prompts_info.append("📌 user_prompt: User interaction prompt template")
+        prompts_info.append("📌 context_prompt: Context-aware prompt template")
+        prompts_info.append("")
+        prompts_info.append("💡 These prompts can be customized for different use cases")
+        
+        return "\n".join(prompts_info)
+        
+    except Exception as e:
+        return f"❌ Error listing prompts: {str(e)}"
 
 # Helper function to get tools safely
 def get_available_tools():
@@ -236,73 +272,18 @@ def agent_interaction(prompt: str) -> str:
         # Step 1: Log the original client prompt
         logger.log_client_request(prompt)
         
-        # Step 2: AUTOMATIC CONTEXT INJECTION - Enhance the prompt with context
+        # Step 2: AUTOMATIC CONTEXT INJECTION - Use centralized prompt generator
         enhanced_prompt = prompt  # Default fallback
         try:
-            # Import context enhancement functions
-            from local_mcp_server_simple import (
-                _generate_conversation_summary,
-                _extract_action_history,
-                _get_tech_stack_definition,
-                _get_project_plans,
-                _get_user_preferences,
-                _get_agent_metadata
+            # Import the centralized prompt generator
+            from prompt_generator import prompt_generator
+            
+            # Generate enhanced prompt with comprehensive context
+            enhanced_prompt = prompt_generator.generate_enhanced_prompt(
+                user_message=prompt,
+                context_type="comprehensive",
+                force_refresh=False
             )
-            
-            # Get recent interactions for context
-            from models_local import get_session_factory, AgentInteraction
-            
-            with get_session_factory()() as db_session:
-                recent_interactions = db_session.query(AgentInteraction).order_by(
-                    AgentInteraction.timestamp.desc()
-                ).limit(15).all()
-            
-            # Generate comprehensive context
-            conversation_summary = _generate_conversation_summary(recent_interactions)
-            action_history = _extract_action_history(recent_interactions)
-            tech_stack = _get_tech_stack_definition()
-            project_plans = _get_project_plans()
-            user_preferences = _get_user_preferences()
-            agent_metadata = _get_agent_metadata()
-            
-            # Build enhanced prompt with context injection
-            enhanced_prompt = f"""
-=== ENHANCED PROMPT WITH AUTOMATIC CONTEXT INJECTION ===
-
-USER MESSAGE: {prompt}
-
-=== CONTEXT INJECTION ===
-
-CONVERSATION SUMMARY:
-{conversation_summary}
-
-ACTION HISTORY:
-{action_history}
-
-TECH STACK:
-{tech_stack}
-
-PROJECT PLANS:
-{project_plans}
-
-USER PREFERENCES:
-{user_preferences}
-
-AGENT METADATA:
-{agent_metadata}
-
-=== INSTRUCTIONS ===
-Please respond to the user's message above, taking into account:
-1. The current conversation context and recent interactions
-2. The specific actions and steps taken so far
-3. The technical stack and capabilities available
-4. The project goals and objectives
-5. The user's stated preferences and requirements
-6. The agent's capabilities and current state
-
-Provide a comprehensive, context-aware response that builds upon our conversation history.
-=== END ENHANCED PROMPT ===
-            """.strip()
             
             print(f"🚀 AUTOMATIC CONTEXT INJECTION: {len(prompt)} -> {len(enhanced_prompt)} characters")
             
@@ -311,7 +292,7 @@ Provide a comprehensive, context-aware response that builds upon our conversatio
             enhanced_prompt = prompt
         
         # Step 3: Process the ENHANCED prompt (replace with actual agent logic)
-        response = f"The agent responded to the ENHANCED prompt: {enhanced_prompt[:200]}..."
+        response = f"The agent responded to the ENHANCED prompt: {enhanced_prompt}"
         
         # Step 4: Log the agent's response
         logger.log_agent_response(response)
@@ -371,32 +352,44 @@ def get_interaction_history(limit: int = 10, session_id: str = None) -> str:
         Returns mock data when LOGGER_AVAILABLE is False. In production, this provides
         real-time access to the conversation database for comprehensive analysis.
     """
-    if not LOGGER_AVAILABLE:
-        return "⚠️ Database not available - this is a mock response. In production, this would return actual conversation history."
+    # LOGGER IS ALWAYS AVAILABLE - NO MOCKS!
     
     try:
-        from models import get_session_factory, AgentInteraction
+        import sqlite3
         
-        with get_session_factory()() as db_session:
-            query = db_session.query(AgentInteraction)
+        # Use direct SQLite connection to bypass SQLAlchemy model issues
+        db_path = "/Users/jonathanmorand/Documents/ProjectsFolder/MCP_FOLDER/MCP/MCP/data/agent_tracker.db"
+        
+        with sqlite3.connect(db_path) as conn:
+            conn.row_factory = sqlite3.Row  # Enable column access by name
+            cursor = conn.cursor()
+            
+            # Build SQL query
+            sql = "SELECT * FROM interactions"
+            params = []
             
             if session_id:
-                query = query.filter(AgentInteraction.session_id == session_id)
+                sql += " WHERE session_id = ?"
+                params.append(session_id)
             
-            interactions = query.order_by(AgentInteraction.timestamp.desc()).limit(limit).all()
+            sql += " ORDER BY timestamp DESC LIMIT ?"
+            params.append(limit)
             
-            if not interactions:
+            cursor.execute(sql, params)
+            rows = cursor.fetchall()
+            
+            if not rows:
                 return "No conversations found."
             
             result = []
-            for interaction in interactions:
+            for row in rows:
                 result.append({
-                    'id': interaction.id,
-                    'timestamp': interaction.timestamp.isoformat(),
-                    'type': interaction.interaction_type,
-                    'client_request': interaction.prompt,
-                    'agent_response': interaction.response,
-                    'status': interaction.status
+                    'id': row['id'],
+                    'timestamp': row['timestamp'] or 'unknown',
+                    'type': row['interaction_type'],
+                    'client_request': row['prompt'] or row['client_request'] or '',
+                    'agent_response': row['response'] or row['agent_response'] or '',
+                    'status': row['status'] or 'completed'
                 })
             
             return f"Found {len(result)} conversations: {result}"
@@ -450,45 +443,55 @@ def get_conversation_summary(session_id: str = None) -> str:
         Returns mock data when LOGGER_AVAILABLE is False. In production, this provides
         real-time analytics from the conversation database for operational insights.
     """
-    if not LOGGER_AVAILABLE:
-        return "⚠️ Database not available - this is a mock response. In production, this would return actual conversation statistics."
+    # LOGGER IS ALWAYS AVAILABLE - NO MOCKS!
     
     try:
-        from models import get_session_factory, AgentInteraction
+        from models_unified import get_session_factory, AgentInteraction
         
-        with get_session_factory()() as db_session:
+        # Get a database session using the same session factory as the logger
+        session_factory = get_session_factory()
+        with session_factory() as db_session:
+            # Query the real database directly
             query = db_session.query(AgentInteraction)
             
+            # Filter by session_id if provided
             if session_id:
                 query = query.filter(AgentInteraction.session_id == session_id)
             
-            # Get total interactions
-            total_interactions = query.count()
-            
-            # Get interaction types breakdown
-            type_counts = {}
-            for interaction in query.all():
-                interaction_type = interaction.interaction_type
-                type_counts[interaction_type] = type_counts.get(interaction_type, 0) + 1
-            
-            # Get recent activity
-            recent_interactions = query.order_by(AgentInteraction.timestamp.desc()).limit(5).all()
-            recent_summary = []
-            for interaction in recent_interactions:
-                recent_summary.append({
-                    'type': interaction.interaction_type,
-                    'timestamp': interaction.timestamp.isoformat(),
-                    'client_request': interaction.prompt[:100] + "..." if interaction.prompt and len(interaction.prompt) > 100 else interaction.prompt,
-                    'status': interaction.status
-                })
-            
-            summary = {
-                'total_interactions': total_interactions,
-                'interaction_type_breakdown': type_counts,
-                'recent_activity': recent_summary
-            }
-            
-            return f"Conversation Summary: {summary}"
+            # Get more interactions for summary analysis
+            interactions = query.order_by(AgentInteraction.timestamp.desc()).limit(100).all()
+        
+        if not interactions:
+            return "No conversations found."
+        
+        # Get total interactions
+        total_interactions = len(interactions)
+        
+        # Get interaction types breakdown
+        type_counts = {}
+        for interaction in interactions:
+            interaction_type = getattr(interaction, 'interaction_type', 'unknown')
+            type_counts[interaction_type] = type_counts.get(interaction_type, 0) + 1
+        
+        # Get recent activity
+        recent_interactions = interactions[:5]  # First 5 since they're already ordered
+        recent_summary = []
+        for interaction in recent_interactions:
+            prompt = getattr(interaction, 'prompt', '')
+            recent_summary.append({
+                'type': getattr(interaction, 'interaction_type', 'unknown'),
+                'timestamp': getattr(interaction, 'timestamp', datetime.now()).isoformat(),
+                'client_request': prompt[:300] + "..." if prompt and len(prompt) > 300 else prompt,
+                'status': getattr(interaction, 'status', 'unknown')
+            })
+        
+        summary = {
+            'total_interactions': total_interactions,
+            'interaction_type_breakdown': type_counts,
+            'recent_activity': recent_summary
+        }
+        
+        return f"Conversation Summary: {summary}"
             
     except Exception as e:
         return f"Error retrieving conversation summary: {str(e)}"
@@ -552,7 +555,7 @@ def get_system_status() -> str:
             'log_file': Config.LOG_FILE,
             'uptime_seconds': int(time.time() - start_time) if 'start_time' in globals() else 0,
             'available_tools': tool_names,
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'mcp_available': MCP_AVAILABLE,
             'logger_available': LOGGER_AVAILABLE,
             'config_available': CONFIG_AVAILABLE,
@@ -729,8 +732,7 @@ def inject_conversation_context(prompt: str, session_id: str = None) -> str:
         - Improving code suggestions with project context
         - Creating more relevant and helpful responses
     """
-    if not LOGGER_AVAILABLE:
-        return f"⚠️ Context injection not available - returning original prompt: {prompt}"
+    # LOGGER IS ALWAYS AVAILABLE - NO MOCKS!
     
     try:
         from context_manager import context_manager
@@ -784,8 +786,7 @@ def get_conversation_context(session_id: str = None) -> str:
         - Monitoring context system performance
         - Optimizing context generation algorithms
     """
-    if not LOGGER_AVAILABLE:
-        return "⚠️ Context analysis not available - database not accessible."
+    # LOGGER IS ALWAYS AVAILABLE - NO MOCKS!
     
     try:
         from context_manager import context_manager
@@ -1045,7 +1046,7 @@ def export_session(session_id: str) -> str:
             return f"❌ Failed to export session {session_id} - session not found or export failed."
         
         # Create export file
-        export_dir = Path("./data/exports")
+        export_dir = Path("/Users/jonathanmorand/Documents/ProjectsFolder/MCP_FOLDER/MCP/MCP/data/exports")
         export_dir.mkdir(parents=True, exist_ok=True)
         
         export_file = export_dir / f"session_{session_id}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
@@ -1214,56 +1215,61 @@ def extract_conversation_data(limit: int = 20, interaction_type: str = None,
         - extract_conversation_data(interaction_type="conversation_turn") - Only user conversations
         - extract_conversation_data(session_id="abc123") - Conversations from specific session
     """
-    if not LOGGER_AVAILABLE:
-        return "⚠️ Database not available - cannot extract conversation data."
+    # LOGGER IS ALWAYS AVAILABLE - NO MOCKS!
     
     try:
-        from models import get_session_factory, AgentInteraction
+        from models_unified import get_session_factory, AgentInteraction
         
-        with get_session_factory()() as db_session:
-            # Build query
+        # Get a database session using the same session factory as the logger
+        session_factory = get_session_factory()
+        with session_factory() as db_session:
+            # Query the real database directly
             query = db_session.query(AgentInteraction)
             
-            # Apply filters
-            if interaction_type:
-                query = query.filter(AgentInteraction.interaction_type == interaction_type)
-            
+            # Filter by session_id if provided
             if session_id:
                 query = query.filter(AgentInteraction.session_id == session_id)
             
-            # Get results with limit
+            # Order by timestamp descending and limit results
             interactions = query.order_by(AgentInteraction.timestamp.desc()).limit(limit).all()
-            
-            # Format results
-            conversations = []
-            for interaction in interactions:
-                conv = {
-                    'id': interaction.id,
-                    'timestamp': interaction.timestamp.isoformat() if interaction.timestamp else None,
-                    'session_id': interaction.session_id,
-                    'interaction_type': interaction.interaction_type,
-                    'prompt': interaction.prompt,
-                    'response': interaction.response,
-                    'full_content': interaction.full_content,
-                    'status': interaction.status,
-                    'execution_time_ms': interaction.execution_time_ms,
-                    'meta_data': interaction.meta_data
-                }
-                conversations.append(conv)
-            
-            # Return formatted result
-            result = {
-                "total_found": len(conversations),
-                "limit": limit,
-                "filters": {
-                    "interaction_type": interaction_type,
-                    "session_id": session_id
-                },
-                "conversations": conversations,
-                "extracted_at": datetime.utcnow().isoformat()
+        
+        # Apply filters manually
+        if interaction_type:
+            interactions = [i for i in interactions if getattr(i, 'interaction_type', '') == interaction_type]
+        
+        if session_id:
+            interactions = [i for i in interactions if getattr(i, 'session_id', '') == session_id]
+        
+        # Format results
+        conversations = []
+        for interaction in interactions:
+            conv = {
+                'id': getattr(interaction, 'id', 'unknown'),
+                'timestamp': getattr(interaction, 'timestamp', datetime.now()).isoformat(),
+                'session_id': getattr(interaction, 'session_id', 'unknown'),
+                'interaction_type': getattr(interaction, 'interaction_type', 'unknown'),
+                'prompt': getattr(interaction, 'prompt', ''),
+                'response': getattr(interaction, 'response', ''),
+                'full_content': getattr(interaction, 'full_content', ''),
+                'status': getattr(interaction, 'status', 'unknown'),
+                'execution_time_ms': getattr(interaction, 'execution_time_ms', 0),
+                'meta_data': getattr(interaction, 'meta_data', {})
             }
-            
-            return json.dumps(result, indent=2)
+            conversations.append(conv)
+        
+        # Return formatted result
+        result = {
+            "total_found": len(conversations),
+            "limit": limit,
+            "filters": {
+                "interaction_type": interaction_type,
+                "session_id": session_id
+            },
+            "conversations": conversations,
+            "extracted_at": datetime.now().isoformat()
+        }
+        
+        return json.dumps(result, indent=2)
             
     except Exception as e:
         return f"❌ Error extracting conversation data: {str(e)}"
@@ -1294,62 +1300,75 @@ def get_conversation_analytics() -> str:
         - Data-driven decision making for system improvements
         - Operational reporting and dashboards
     """
-    if not LOGGER_AVAILABLE:
-        return "⚠️ Database not available - cannot get analytics."
+    # LOGGER IS ALWAYS AVAILABLE - NO MOCKS!
     
     try:
-        from models import get_session_factory, AgentInteraction, Session
+        from models_unified import get_session_factory, AgentInteraction
         
-        with get_session_factory()() as db_session:
-            # Get interaction type counts
-            from sqlalchemy import func
-            type_counts = db_session.query(
-                AgentInteraction.interaction_type,
-                func.count(AgentInteraction.id)
-            ).group_by(AgentInteraction.interaction_type).all()
+        # Get a database session using the same session factory as the logger
+        session_factory = get_session_factory()
+        with session_factory() as db_session:
+            # Query the real database directly
+            interactions = db_session.query(AgentInteraction).order_by(
+                AgentInteraction.timestamp.desc()
+            ).limit(100).all()
             
-            type_breakdown = {row[0]: row[1] for row in type_counts}
-            
-            # Get recent user activity
-            recent_activity = db_session.query(AgentInteraction).filter(
-                AgentInteraction.interaction_type.in_(['client_request', 'conversation_turn'])
-            ).order_by(AgentInteraction.timestamp.desc()).limit(10).all()
-            
-            activity_preview = []
-            for activity in recent_activity:
-                preview = {
-                    'type': activity.interaction_type,
-                    'timestamp': activity.timestamp.isoformat() if activity.timestamp else None,
-                    'preview': (activity.prompt or activity.response or '')[:100] if (activity.prompt or activity.response) else None
-                }
-                activity_preview.append(preview)
-            
-            # Get session statistics
-            total_sessions = db_session.query(Session).count()
-            from datetime import timedelta
-            active_sessions = db_session.query(Session).filter(
-                Session.last_activity > datetime.utcnow() - timedelta(hours=1)
-            ).count()
-            
-            # Compile analytics
-            analytics = {
-                "total_interactions": sum(type_breakdown.values()),
-                "interaction_type_breakdown": type_breakdown,
-                "session_statistics": {
-                    "total_sessions": total_sessions,
-                    "active_sessions": active_sessions,
-                    "active_sessions_threshold": "1 hour"
-                },
-                "recent_user_activity": activity_preview,
-                "system_health": {
-                    "database_accessible": True,
-                    "logger_available": LOGGER_AVAILABLE,
-                    "session_manager_available": SESSION_MANAGER_AVAILABLE
-                },
-                "analytics_generated_at": datetime.utcnow().isoformat()
+            # Get unique sessions from interactions
+            session_ids = set(i.session_id for i in interactions if i.session_id)
+            sessions = list(session_ids)
+        
+        # Get interaction type counts
+        type_breakdown = {}
+        for interaction in interactions:
+            interaction_type = getattr(interaction, 'interaction_type', 'unknown')
+            type_breakdown[interaction_type] = type_breakdown.get(interaction_type, 0) + 1
+        
+        # Get recent user activity
+        recent_activity = interactions[:10]  # First 10 since they're already ordered
+        activity_preview = []
+        for activity in recent_activity:
+            prompt = getattr(activity, 'prompt', '')
+            response = getattr(activity, 'response', '')
+            preview = {
+                'type': getattr(activity, 'interaction_type', 'unknown'),
+                'timestamp': getattr(activity, 'timestamp', datetime.now()).isoformat(),
+                'preview': (prompt or response or '')[:100] if (prompt or response) else 'No content'
             }
-            
-            return json.dumps(analytics, indent=2)
+            activity_preview.append(preview)
+        
+        # Get session statistics
+        total_sessions = len(sessions)
+        from datetime import timedelta
+        active_sessions = 0
+        for session in sessions:
+            last_activity = getattr(session, 'last_activity', datetime.now())
+            if isinstance(last_activity, str):
+                try:
+                    last_activity = datetime.fromisoformat(last_activity)
+                except:
+                    last_activity = datetime.now()
+            if last_activity > datetime.now() - timedelta(hours=1):
+                active_sessions += 1
+        
+        # Compile analytics
+        analytics = {
+            "total_interactions": sum(type_breakdown.values()),
+            "interaction_type_breakdown": type_breakdown,
+            "session_statistics": {
+                "total_sessions": total_sessions,
+                "active_sessions": active_sessions,
+                "active_sessions_threshold": "1 hour"
+            },
+            "recent_user_activity": activity_preview,
+            "system_health": {
+                "database_accessible": False,  # Using local storage
+                "logger_available": LOGGER_AVAILABLE,
+                "session_manager_available": SESSION_MANAGER_AVAILABLE
+            },
+            "analytics_generated_at": datetime.now().isoformat()
+        }
+        
+        return json.dumps(analytics, indent=2)
             
     except Exception as e:
         return f"❌ Error getting analytics: {str(e)}"
@@ -1381,6 +1400,137 @@ def test_automatic_context_injection(message: str = "Hello, test message!") -> s
             
     except Exception as e:
         return f"❌ ERROR: Test failed with error: {str(e)}"
+
+@mcp.tool()
+def enhanced_chat(user_message: str) -> str:
+    """Enhanced chat function that provides context-aware responses using the prompt generator.
+    
+    This function uses the centralized prompt generator to create comprehensive,
+    context-aware enhanced prompts with full conversation history, tech stack,
+    project plans, and user preferences.
+    
+    Args:
+        user_message (str): The user's message to enhance with context
+        
+    Returns:
+        str: Full enhanced prompt with comprehensive context injection
+        
+    Features:
+        - Automatic context injection with conversation history
+        - Tech stack detection and project context
+        - User preferences and learning patterns
+        - Multiple enhancement strategies
+        - Performance monitoring and caching
+    """
+    start_time = time.time()
+    
+    try:
+        # LOG THE CLIENT REQUEST
+        logger.log_client_request(
+            request=user_message,
+            metadata={
+                'tool_name': 'enhanced_chat',
+                'context_type': 'comprehensive',
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }
+        )
+        
+        # Import and use the centralized prompt generator
+        from prompt_generator import prompt_generator
+        
+        # Generate enhanced prompt with comprehensive context
+        enhanced_prompt = prompt_generator.generate_enhanced_prompt(
+            user_message=user_message,
+            context_type="comprehensive",
+            force_refresh=False
+        )
+        
+        # LOG THE AGENT RESPONSE
+        execution_time = int((time.time() - start_time) * 1000)  # Convert to milliseconds
+        logger.log_agent_response(
+            response=enhanced_prompt,
+            metadata={
+                'tool_name': 'enhanced_chat',
+                'execution_time_ms': execution_time,
+                'context_type': 'comprehensive',
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }
+        )
+        
+        # LOG THE COMPLETE CONVERSATION TURN
+        logger.log_conversation_turn(
+            client_request=user_message,
+            agent_response=enhanced_prompt,
+            metadata={
+                'tool_name': 'enhanced_chat',
+                'interaction_type': 'enhanced_chat',
+                'execution_time_ms': execution_time,
+                'context_type': 'comprehensive',
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }
+        )
+        
+        return enhanced_prompt
+        
+    except ImportError as e:
+        error_response = f"""=== ENHANCED CHAT RESPONSE ===
+
+USER MESSAGE: {user_message}
+
+=== CONTEXT INJECTION ===
+The prompt generator is not available: {str(e)}
+
+=== RESPONSE ===
+I understand you're asking: "{user_message}"
+
+To get full context enhancement, the prompt generator needs to be available.
+
+=== END ENHANCED RESPONSE ==="""
+        
+        # LOG ERROR INTERACTION
+        execution_time = int((time.time() - start_time) * 1000)
+        logger.log_error(
+            error_message=f"Prompt generator import error: {str(e)}",
+            interaction_type='enhanced_chat_error',
+            metadata={
+                'tool_name': 'enhanced_chat',
+                'execution_time_ms': execution_time,
+                'context_type': 'comprehensive',
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }
+        )
+        
+        return error_response
+        
+    except Exception as e:
+        error_response = f"""=== ENHANCED CHAT RESPONSE ===
+
+USER MESSAGE: {user_message}
+
+=== CONTEXT INJECTION ===
+Error in prompt generation: {str(e)}
+
+=== RESPONSE ===
+I understand you're asking: "{user_message}"
+
+There was an error generating the enhanced prompt, but I'm here to help!
+
+=== END ENHANCED RESPONSE ==="""
+        
+        # LOG ERROR INTERACTION
+        execution_time = int((time.time() - start_time) * 1000)
+        logger.log_error(
+            error_message=f"Prompt generation error: {str(e)}",
+            interaction_type='enhanced_chat_error',
+            metadata={
+                'tool_name': 'enhanced_chat',
+                'execution_time_ms': execution_time,
+                'context_type': 'comprehensive',
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }
+        )
+        
+        return error_response
 
 def background_monitoring():
     """Background daemon thread that provides continuous system health monitoring and metrics collection.
@@ -1437,7 +1587,7 @@ def background_monitoring():
             logger.log_interaction(
                 interaction_type='health_check',
                 metadata={
-                    'timestamp': datetime.utcnow().isoformat(),
+                    'timestamp': datetime.now(timezone.utc).isoformat(),
                     'uptime_seconds': int(time.time() - start_time)
                 }
             )

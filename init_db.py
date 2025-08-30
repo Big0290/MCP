@@ -6,7 +6,7 @@ Run this script to create the database tables and initial setup
 
 import os
 import sys
-from models import init_database, get_session_factory, Session, AgentInteraction
+from models_unified import init_database, get_session_factory, Session, AgentInteraction
 
 def main():
     """Initialize the database and create tables"""

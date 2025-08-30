@@ -88,8 +88,10 @@ class SeamlessContextManager:
         try:
             # Import MCP server functions
             from local_mcp_server_simple import (
-                enhanced_chat, process_prompt_with_context
+                process_prompt_with_context
             )
+            # Import enhanced chat with semantic capabilities
+            from enhanced_chat_integration import enhanced_chat
             self.context_systems['mcp_server'] = {
                 'instance': {
                     'enhanced_chat': enhanced_chat,
@@ -341,30 +343,80 @@ class SeamlessContextManager:
     def _get_session_interactions(self, session_id: str) -> List[Dict[str, Any]]:
         """Get recent interactions for a session"""
         try:
-            from models_local import get_session_factory, AgentInteraction
-            
-            session_factory = get_session_factory()
-            with session_factory() as db_session:
-                # Get interactions from last 24 hours
-                cutoff_time = datetime.now() - timedelta(hours=24)
+            # Try to use SQLAlchemy models first
+            try:
+                from models_unified import get_session_factory, AgentInteraction
                 
-                interactions = db_session.query(AgentInteraction).filter(
-                    AgentInteraction.session_id == session_id,
-                    AgentInteraction.timestamp >= cutoff_time
-                ).order_by(AgentInteraction.timestamp.desc()).limit(20).all()
+                session_factory = get_session_factory()
+                with session_factory() as db_session:
+                    # Get interactions from last 24 hours
+                    cutoff_time = datetime.now() - timedelta(hours=24)
+                    
+                    # Use local storage for now since database queries aren't working
+                    from models_unified import get_local_interactions
+                    all_interactions = get_local_interactions(100)
+                    
+                    # Filter by session_id and time manually
+                    interactions = []
+                    for i in all_interactions:
+                        if (getattr(i, 'session_id', '') == session_id and 
+                            getattr(i, 'timestamp', datetime.now()) >= cutoff_time):
+                            interactions.append(i)
+                    
+                    interactions = interactions[:20]  # Limit to 20
+                    
+                    # Convert to dictionaries
+                    return [
+                        {
+                            'interaction_type': getattr(i, 'interaction_type', 'unknown'),
+                            'prompt': getattr(i, 'prompt', ''),
+                            'response': getattr(i, 'response', ''),
+                            'timestamp': getattr(i, 'timestamp', datetime.now()),
+                            'status': getattr(i, 'status', 'unknown'),
+                            'execution_time_ms': getattr(i, 'execution_time_ms', 0)
+                        }
+                        for i in interactions
+                    ]
+                    
+            except ImportError:
+                # Fallback to direct SQLite query
+                import sqlite3
+                import os
                 
-                # Convert to dictionaries
-                return [
-                    {
-                        'interaction_type': i.interaction_type,
-                        'prompt': i.prompt,
-                        'response': i.response,
-                        'timestamp': i.timestamp,
-                        'status': i.status,
-                        'execution_time_ms': i.execution_time_ms
-                    }
-                    for i in interactions
-                ]
+                db_path = './data/agent_tracker.db'
+                if os.path.exists(db_path):
+                    conn = sqlite3.connect(db_path)
+                    cursor = conn.cursor()
+                    
+                    # Get interactions from last 24 hours
+                    cutoff_time = datetime.now() - timedelta(hours=24)
+                    cutoff_str = cutoff_time.strftime('%Y-%m-%d %H:%M:%S')
+                    
+                    cursor.execute("""
+                        SELECT interaction_type, prompt, response, timestamp, status, execution_time_ms
+                        FROM agent_interactions 
+                        WHERE session_id = ? AND timestamp >= ?
+                        ORDER BY timestamp DESC 
+                        LIMIT 20
+                    """, (session_id, cutoff_str))
+                    
+                    rows = cursor.fetchall()
+                    conn.close()
+                    
+                    return [
+                        {
+                            'interaction_type': row[0],
+                            'prompt': row[1],
+                            'response': row[2],
+                            'timestamp': row[3],
+                            'status': row[4],
+                            'execution_time_ms': row[5]
+                        }
+                        for row in rows
+                    ]
+                else:
+                    logger.warning(f"⚠️ Database not found at {db_path}")
+                    return []
                 
         except Exception as e:
             logger.error(f"❌ Failed to get session interactions: {e}")
@@ -743,28 +795,45 @@ class SeamlessContextManager:
     def _get_existing_context(self, session_id: str) -> Optional[Dict[str, Any]]:
         """Get existing context for a session"""
         try:
-            from models_local import get_session_factory, ConversationContext
+            from models_unified import get_session_factory, ConversationContext
             
-            session_factory = get_session_factory()
-            with session_factory() as db_session:
-                context = db_session.query(ConversationContext).filter(
-                    ConversationContext.session_id == session_id
-                ).first()
-                
-                if context:
-                    return {
-                        'id': context.id,
-                        'session_id': context.session_id,
-                        'user_id': context.user_id,
-                        'context_summary': context.context_summary,
-                        'semantic_context': context.semantic_context,
-                        'key_topics': context.key_topics,
-                        'user_preferences': context.user_preferences,
-                        'project_context': context.project_context,
-                        'relevance_score': context.relevance_score,
-                        'usage_count': context.usage_count
-                    }
+            # Use direct SQLite for now since model queries aren't working
+            import sqlite3
+            import os
+            import json
+            
+            db_path = './data/agent_tracker.db'
+            if not os.path.exists(db_path):
                 return None
+            
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT id, session_id, user_id, context_summary, semantic_context,
+                       key_topics, user_preferences, project_context, relevance_score, usage_count
+                FROM conversation_contexts 
+                WHERE session_id = ?
+                LIMIT 1
+            """, (session_id,))
+            
+            row = cursor.fetchone()
+            conn.close()
+            
+            if row:
+                return {
+                    'id': row[0],
+                    'session_id': row[1],
+                    'user_id': row[2],
+                    'context_summary': row[3],
+                    'semantic_context': json.loads(row[4]) if row[4] else {},
+                    'key_topics': json.loads(row[5]) if row[5] else [],
+                    'user_preferences': json.loads(row[6]) if row[6] else {},
+                    'project_context': json.loads(row[7]) if row[7] else {},
+                    'relevance_score': row[8],
+                    'usage_count': row[9]
+                }
+            return None
                 
         except Exception as e:
             logger.error(f"❌ Failed to get existing context: {e}")
@@ -773,29 +842,41 @@ class SeamlessContextManager:
     def _update_existing_context(self, context_id: int, enhanced_context: Dict[str, Any]) -> bool:
         """Update existing context with new information"""
         try:
-            from models_local import get_session_factory, ConversationContext
+            from models_unified import get_session_factory, ConversationContext
             import json
             
-            session_factory = get_session_factory()
-            with session_factory() as db_session:
-                context = db_session.query(ConversationContext).filter(
-                    ConversationContext.id == context_id
-                ).first()
-                
-                if context:
-                    context.context_summary = enhanced_context['context_summary']
-                    context.semantic_context = json.dumps(enhanced_context['semantic_context'])
-                    context.key_topics = json.dumps(enhanced_context['key_topics'])
-                    context.user_preferences = json.dumps(enhanced_context['user_preferences'])
-                    context.project_context = json.dumps(enhanced_context['project_context'])
-                    context.relevance_score = enhanced_context['relevance_score']
-                    context.updated_at = datetime.now()
-                    context.usage_count += 1
-                    
-                    db_session.commit()
-                    return True
-                
+            # Use direct SQLite for now since model queries aren't working
+            import sqlite3
+            import os
+            
+            db_path = './data/agent_tracker.db'
+            if not os.path.exists(db_path):
                 return False
+            
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                UPDATE conversation_contexts 
+                SET context_summary = ?, semantic_context = ?, key_topics = ?,
+                    user_preferences = ?, project_context = ?, relevance_score = ?,
+                    updated_at = datetime('now'), usage_count = usage_count + 1
+                WHERE id = ?
+            """, (
+                enhanced_context['context_summary'],
+                json.dumps(enhanced_context['semantic_context']),
+                json.dumps(enhanced_context['key_topics']),
+                json.dumps(enhanced_context['user_preferences']),
+                json.dumps(enhanced_context['project_context']),
+                enhanced_context['relevance_score'],
+                context_id
+            ))
+            
+            updated = cursor.rowcount > 0
+            conn.commit()
+            conn.close()
+            
+            return updated
                 
         except Exception as e:
             logger.error(f"❌ Failed to update context: {e}")
@@ -804,27 +885,44 @@ class SeamlessContextManager:
     def _create_new_context(self, enhanced_context: Dict[str, Any]) -> bool:
         """Create new context in database"""
         try:
-            from models_local import get_session_factory, ConversationContext
+            # Use direct SQLite instead of problematic models
+            import sqlite3
             import json
+            import os
             
-            session_factory = get_session_factory()
-            with session_factory() as db_session:
-                new_context = ConversationContext(
-                    session_id=enhanced_context['session_id'],
-                    user_id=enhanced_context['user_id'],
-                    context_summary=enhanced_context['context_summary'],
-                    semantic_context=json.dumps(enhanced_context['semantic_context']),
-                    key_topics=json.dumps(enhanced_context['key_topics']),
-                    user_preferences=json.dumps(enhanced_context['user_preferences']),
-                    project_context=json.dumps(enhanced_context['project_context']),
-                    context_type=enhanced_context['context_type'],
-                    relevance_score=enhanced_context['relevance_score'],
-                    usage_count=enhanced_context['usage_count']
-                )
-                
-                db_session.add(new_context)
-                db_session.commit()
-                return True
+            db_path = './data/agent_tracker.db'
+            if not os.path.exists(db_path):
+                logger.error(f"❌ Database not found at {db_path}")
+                return False
+            
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            # Insert new context
+            cursor.execute("""
+                INSERT INTO conversation_contexts (
+                    session_id, user_id, context_summary, semantic_context,
+                    key_topics, user_preferences, project_context, context_type,
+                    relevance_score, usage_count, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+            """, (
+                enhanced_context['session_id'],
+                enhanced_context['user_id'],
+                enhanced_context['context_summary'],
+                json.dumps(enhanced_context['semantic_context']),
+                json.dumps(enhanced_context['key_topics']),
+                json.dumps(enhanced_context['user_preferences']),
+                json.dumps(enhanced_context['project_context']),
+                enhanced_context['context_type'],
+                enhanced_context['relevance_score'],
+                enhanced_context['usage_count']
+            ))
+            
+            conn.commit()
+            conn.close()
+            
+            logger.info(f"✅ Created new context for session {enhanced_context['session_id']}")
+            return True
                 
         except Exception as e:
             logger.error(f"❌ Failed to create new context: {e}")

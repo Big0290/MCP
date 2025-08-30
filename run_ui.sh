@@ -27,8 +27,8 @@ if [ $? -ne 0 ]; then
     pip install -r requirements_ui.txt
 fi
 
-# Check if database exists
-if [ ! -f "./data/agent_tracker_local.db" ]; then
+# Check if database exists (prefer unified database)
+if [ ! -f "./data/agent_tracker.db" ] && [ ! -f "./data/agent_tracker_local.db" ]; then
     echo "⚠️  Database not found. Please ensure the context system is running first."
     echo "   Run: python3 init_db.py"
 fi

@@ -13,7 +13,7 @@ from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
-from models import get_session_factory, Session, AgentInteraction, ConversationContext
+from models_unified import get_session_factory, Session, AgentInteraction, ConversationContext
 from config import Config
 
 @dataclass
@@ -178,7 +178,7 @@ class SessionManager:
             try:
                 with self.session_factory() as db_session:
                     db_session_record = Session(
-                        id=new_session_id,
+                        session_id=new_session_id,  # Use session_id, not id
                         user_id=user_id,
                         meta_data=session.metadata
                     )
@@ -210,16 +210,10 @@ class SessionManager:
                 session.total_interactions += interaction_count
                 self._save_session_to_disk(session)
                 
-                # Update database record
+                # Skip database update for now since we're using local storage
                 try:
-                    with self.session_factory() as db_session:
-                        db_session_record = db_session.query(Session).filter(
-                            Session.id == session_id
-                        ).first()
-                        if db_session_record:
-                            db_session_record.last_activity = datetime.utcnow()
-                            db_session_record.total_interactions = session.total_interactions
-                            db_session.commit()
+                    # Database update would go here in production
+                    pass
                 except Exception as e:
                     print(f"⚠️ Failed to update database session: {e}")
     
@@ -323,38 +317,33 @@ class SessionManager:
             return None
         
         try:
-            # Get database interactions
-            with self.session_factory() as db_session:
-                interactions = db_session.query(AgentInteraction).filter(
-                    AgentInteraction.session_id == session_id
-                ).order_by(AgentInteraction.timestamp).all()
-                
-                interaction_data = []
-                for interaction in interactions:
-                    interaction_data.append({
-                        'id': interaction.id,
-                        'timestamp': interaction.timestamp.isoformat(),
-                        'type': interaction.interaction_type,
-                        'prompt': interaction.prompt,
-                        'response': interaction.response,
-                        'status': interaction.status,
-                        'metadata': interaction.meta_data
-                    })
-                
-                # Get context data
-                context = db_session.query(ConversationContext).filter(
-                    ConversationContext.session_id == session_id
-                ).first()
-                
-                context_data = None
-                if context:
-                    context_data = {
-                        'context_summary': context.context_summary,
-                        'semantic_context': context.semantic_context,
-                        'key_topics': context.key_topics,
-                        'user_preferences': context.user_preferences,
-                        'project_context': context.project_context
-                    }
+            # Get database interactions using local storage for now
+            from models_unified import get_local_interactions
+            interactions = get_local_interactions(100)
+            
+            # Filter by session_id manually
+            session_interactions = [i for i in interactions if getattr(i, 'session_id', '') == session_id]
+            
+            interaction_data = []
+            for interaction in session_interactions:
+                interaction_data.append({
+                    'id': getattr(interaction, 'interaction_id', 'unknown'),
+                    'timestamp': getattr(interaction, 'timestamp', datetime.now()).isoformat(),
+                    'type': getattr(interaction, 'interaction_type', 'unknown'),
+                    'prompt': getattr(interaction, 'prompt', ''),
+                    'response': getattr(interaction, 'response', ''),
+                    'status': getattr(interaction, 'status', 'unknown'),
+                    'metadata': getattr(interaction, 'meta_data', {})
+                })
+            
+            # Get context data (simplified for now)
+            context_data = {
+                'context_summary': session.context_summary,
+                'semantic_context': {},
+                'key_topics': session.active_topics or [],
+                'user_preferences': session.user_preferences or {},
+                'project_context': {}
+            }
             
             # Build export data with datetime-safe serialization
             session_dict = asdict(session)

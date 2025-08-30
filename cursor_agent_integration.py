@@ -75,53 +75,66 @@ class CursorAgentIntegration:
     def _call_prompt_processor(self, user_message: str) -> str:
         """Call your MCP prompt processor to generate enhanced context"""
         try:
-            # Import your prompt processor functions
-            from local_mcp_server_simple import (
-                _generate_conversation_summary,
-                _extract_action_history,
-                _get_tech_stack_definition,
-                _get_project_plans,
-                _get_user_preferences,
-                _get_agent_metadata,
-                _build_enhanced_prompt
-            )
+            # Use the centralized prompt generator
+            from prompt_generator import prompt_generator
             
-            # Get recent interactions from database
-            from models_local import get_session_factory, AgentInteraction
-            
-            with get_session_factory()() as db_session:
-                recent_interactions = db_session.query(AgentInteraction).order_by(
-                    AgentInteraction.timestamp.desc()
-                ).limit(20).all()
-            
-            # Generate context components
-            conversation_summary = _generate_conversation_summary(recent_interactions)
-            action_history = _extract_action_history(recent_interactions)
-            tech_stack = _get_tech_stack_definition()
-            project_plans = _get_project_plans()
-            user_preferences = _get_user_preferences()
-            agent_metadata = _get_agent_metadata()
-            
-            # Build enhanced prompt
-            enhanced_prompt = _build_enhanced_prompt(
+            # Generate enhanced prompt with comprehensive context
+            enhanced_prompt = prompt_generator.generate_enhanced_prompt(
                 user_message=user_message,
-                conversation_summary=conversation_summary,
-                action_history=action_history,
-                tech_stack=tech_stack,
-                project_plans=project_plans,
-                user_preferences=user_preferences,
-                agent_metadata=agent_metadata
+                context_type="comprehensive",
+                force_refresh=False
             )
             
             return enhanced_prompt
             
         except ImportError as e:
-            logger.warning(f"⚠️ Import error in prompt processor: {e}")
-            # Fallback to basic enhancement
-            return self._create_basic_enhanced_prompt(user_message)
+            logger.warning(f"⚠️ Centralized prompt generator import failed: {e}")
+            # Fallback to original implementation
+            try:
+                # Import your prompt processor functions
+                from local_mcp_server_simple import (
+                    _generate_conversation_summary,
+                    _extract_action_history,
+                    _get_tech_stack_definition,
+                    _get_project_plans,
+                    _get_user_preferences,
+                    _get_agent_metadata,
+                    _build_enhanced_prompt
+                )
+                
+                # Get recent interactions from database
+                from models_unified import get_session_factory, AgentInteraction
+                
+                # Use local storage for now since database queries aren't working
+                from models_unified import get_local_interactions
+                recent_interactions = get_local_interactions(20)
+                
+                # Generate context components
+                conversation_summary = _generate_conversation_summary(recent_interactions)
+                action_history = _extract_action_history(recent_interactions)
+                tech_stack = _get_tech_stack_definition()
+                project_plans = _get_project_plans()
+                user_preferences = _get_user_preferences()
+                agent_metadata = _get_agent_metadata()
+                
+                # Build enhanced prompt
+                enhanced_prompt = _build_enhanced_prompt(
+                    user_message=user_message,
+                    conversation_summary=conversation_summary,
+                    action_history=action_history,
+                    tech_stack=tech_stack,
+                    project_plans=project_plans,
+                    user_preferences=user_preferences,
+                    agent_metadata=agent_metadata
+                )
+                
+                return enhanced_prompt
+                
+            except Exception as fallback_error:
+                logger.error(f"⚠️ Fallback prompt processing failed: {fallback_error}")
+                return self._create_basic_enhanced_prompt(user_message)
         except Exception as e:
             logger.error(f"⚠️ Prompt processor failed: {e}")
-            # Fallback to basic enhancement
             return self._create_basic_enhanced_prompt(user_message)
     
     def _create_basic_enhanced_prompt(self, user_message: str) -> str:

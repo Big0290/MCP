@@ -10,7 +10,7 @@ class Config:
     
     # Database configuration
     DATABASE_URL = os.getenv('DATABASE_URL')
-    DB_PATH = os.getenv('DB_PATH', './data/agent_tracker.db')
+    DB_PATH = os.getenv('DB_PATH', '/Users/jonathanmorand/Documents/ProjectsFolder/MCP_FOLDER/MCP/MCP/data/agent_tracker.db')
     
     # User configuration
     USER_ID = os.getenv('USER_ID', 'anonymous')
