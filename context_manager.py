@@ -86,16 +86,30 @@ class SeamlessContextManager:
             }
         
         try:
-            # Import MCP server functions
-            from local_mcp_server_simple import (
-                process_prompt_with_context
-            )
-            # Import enhanced chat with semantic capabilities
-            from enhanced_chat_integration import enhanced_chat
+            # Try to import MCP server functions (may fail due to circular imports)
+            try:
+                from local_mcp_server_simple import process_prompt_with_context
+                mcp_process_function = process_prompt_with_context
+            except ImportError as e:
+                logger.warning(f"⚠️ Could not import process_prompt_with_context: {e}")
+                # Create a fallback function
+                def mcp_process_function(prompt):
+                    return f"MCP processing not available: {prompt}"
+            
+            # Try to import enhanced chat
+            try:
+                from enhanced_chat_integration import enhanced_chat
+                mcp_enhanced_chat = enhanced_chat
+            except ImportError as e:
+                logger.warning(f"⚠️ Could not import enhanced_chat_integration: {e}")
+                # Create a fallback function
+                def mcp_enhanced_chat(prompt):
+                    return f"Enhanced chat not available: {prompt}"
+            
             self.context_systems['mcp_server'] = {
                 'instance': {
-                    'enhanced_chat': enhanced_chat,
-                    'process_prompt_with_context': process_prompt_with_context
+                    'enhanced_chat': mcp_enhanced_chat,
+                    'process_prompt_with_context': mcp_process_function
                 },
                 'status': 'available',
                 'capabilities': ['mcp_integration', 'enhanced_chat', 'prompt_processing']
@@ -353,8 +367,13 @@ class SeamlessContextManager:
                     cutoff_time = datetime.now() - timedelta(hours=24)
                     
                     # Use local storage for now since database queries aren't working
-                    from models_unified import get_local_interactions
-                    all_interactions = get_local_interactions(100)
+                    try:
+                        from models_unified import get_local_interactions
+                        all_interactions = get_local_interactions(100)
+                    except ImportError:
+                        # Fallback to empty list if models not available
+                        all_interactions = []
+                        logger.warning("⚠️ Models not available, using empty interactions")
                     
                     # Filter by session_id and time manually
                     interactions = []

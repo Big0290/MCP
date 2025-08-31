@@ -1,0 +1,137 @@
+[
+  {
+    "instruction_type": "agent_metadata",
+    "field": "friendly_name",
+    "old_value": "Johny",
+    "new_value": "Superbot",
+    "confidence": 0.9,
+    "raw_instruction": "Your name is SuperBot",
+    "timestamp": "2025-08-30T00:08:59.518301"
+  },
+  {
+    "instruction_type": "user_preferences",
+    "field": "avoid_patterns",
+    "old_value": null,
+    "new_value": "postgresql",
+    "confidence": 0.9,
+    "raw_instruction": "Don't use PostgreSQL, use SQLite instead",
+    "timestamp": "2025-08-30T00:08:59.519786"
+  },
+  {
+    "instruction_type": "user_preferences",
+    "field": "preferred_tools.general",
+    "old_value": null,
+    "new_value": "sqlite instead",
+    "confidence": 0.9,
+    "raw_instruction": "Don't use PostgreSQL, use SQLite instead",
+    "timestamp": "2025-08-30T00:08:59.519789"
+  },
+  {
+    "instruction_type": "user_preferences",
+    "field": "communication_preferences.style",
+    "old_value": "detailed_explanations",
+    "new_value": "concise",
+    "confidence": 0.8,
+    "raw_instruction": "Be more concise in your responses",
+    "timestamp": "2025-08-30T00:08:59.520153"
+  },
+  {
+    "instruction_type": "agent_metadata",
+    "field": "capabilities",
+    "old_value": null,
+    "new_value": "help with code debugging",
+    "confidence": 0.7,
+    "raw_instruction": "You can help with code debugging",
+    "timestamp": "2025-08-30T00:08:59.520446"
+  },
+  {
+    "instruction_type": "agent_metadata",
+    "field": "friendly_name",
+    "old_value": "Superbot",
+    "new_value": "Very Analytical",
+    "confidence": 0.7,
+    "raw_instruction": "You are very analytical",
+    "timestamp": "2025-08-30T00:08:59.520756"
+  },
+  {
+    "instruction_type": "agent_metadata",
+    "field": "friendly_name",
+    "old_value": "Johny",
+    "new_value": "Superbot And You Can Help With Advanced Debugging",
+    "confidence": 0.9,
+    "raw_instruction": "Your name is SuperBot and you can help with advanced debugging",
+    "timestamp": "2025-08-30T00:10:20.632682"
+  },
+  {
+    "instruction_type": "agent_metadata",
+    "field": "capabilities",
+    "old_value": null,
+    "new_value": "help with advanced debugging",
+    "confidence": 0.7,
+    "raw_instruction": "Your name is SuperBot and you can help with advanced debugging",
+    "timestamp": "2025-08-30T00:10:20.633107"
+  },
+  {
+    "instruction_type": "user_preferences",
+    "field": "general_preferences.general_preference_mention",
+    "old_value": null,
+    "new_value": "mentioned",
+    "confidence": 0.9,
+    "raw_instruction": "i gave some preference in our previous chat and now when i look at our supposely dynamic prompt is showing what i mentionned is not there why ?",
+    "timestamp": "2025-08-30T01:02:16.158991"
+  },
+  {
+    "instruction_type": "user_preferences",
+    "field": "general_preferences.general_preference_mention",
+    "old_value": null,
+    "new_value": "mentioned",
+    "confidence": 0.9,
+    "raw_instruction": "i gave some preference in our previous chat and now when i look at our supposely dynamic prompt is showing what i mentionned is not there why ?",
+    "timestamp": "2025-08-30T01:02:23.066810"
+  },
+  {
+    "instruction_type": "user_preferences",
+    "field": "general_preferences.general_preference",
+    "old_value": null,
+    "new_value": "being captured. i prefer detailed technical explanations with code examples when possible.",
+    "confidence": 0.8,
+    "raw_instruction": "Perfect! Now I can see my preferences are being captured. I prefer detailed technical explanations with code examples when possible.",
+    "timestamp": "2025-08-30T01:03:13.215703"
+  },
+  {
+    "instruction_type": "user_preferences",
+    "field": "workflow_preferences",
+    "old_value": null,
+    "new_value": "User mentioned: being captured. i prefer detailed technical explanations with code examples when possible.",
+    "confidence": 0.6400000000000001,
+    "raw_instruction": "Perfect! Now I can see my preferences are being captured. I prefer detailed technical explanations with code examples when possible.",
+    "timestamp": "2025-08-30T01:03:13.215710"
+  },
+  {
+    "instruction_type": "user_preferences",
+    "field": "general_preferences.user_preference",
+    "old_value": null,
+    "new_value": "detailed technical explanations with code examples when possible.",
+    "confidence": 0.6,
+    "raw_instruction": "Perfect! Now I can see my preferences are being captured. I prefer detailed technical explanations with code examples when possible.",
+    "timestamp": "2025-08-30T01:03:13.215823"
+  },
+  {
+    "instruction_type": "user_preferences",
+    "field": "workflow_preferences",
+    "old_value": null,
+    "new_value": "User mentioned: detailed technical explanations with code examples when possible.",
+    "confidence": 0.48,
+    "raw_instruction": "Perfect! Now I can see my preferences are being captured. I prefer detailed technical explanations with code examples when possible.",
+    "timestamp": "2025-08-30T01:03:13.215824"
+  },
+  {
+    "instruction_type": "user_preferences",
+    "field": "general_preferences.user_preference",
+    "old_value": null,
+    "new_value": "detailed technical explanations",
+    "confidence": 0.6,
+    "raw_instruction": "i prefer detailed technical explanations",
+    "timestamp": "2025-08-30T01:39:37.479811"
+  }
+]

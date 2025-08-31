@@ -358,15 +358,43 @@ class PromptStrategySelector:
     def __init__(self):
         self.strategy_mappings = self._initialize_strategy_mappings()
         self.success_patterns = {}
+    
+    def _get_user_behavioral_steering(self) -> List[BehavioralSteering]:
+        """Get behavioral steering based on user's dynamic preferences."""
+        try:
+            from dynamic_instruction_processor import dynamic_processor
+            user_prefs = dynamic_processor.user_preferences
+            
+            # Map user communication style to behavioral steering
+            style = user_prefs.communication_preferences.get('style', 'detailed_explanations')
+            
+            if style == 'concise':
+                return [BehavioralSteering.CONCISE_SOLUTIONS]
+            elif style == 'detailed_explanations':
+                return [BehavioralSteering.DETAILED_EXPLANATIONS]
+            elif style == 'teaching':
+                return [BehavioralSteering.TEACHING_MODE]
+            elif style == 'implementation':
+                return [BehavioralSteering.IMPLEMENTATION_MODE]
+            else:
+                # Default fallback
+                return [BehavioralSteering.DETAILED_EXPLANATIONS]
+                
+        except Exception as e:
+            # Fallback to default if dynamic preferences not available
+            return [BehavioralSteering.DETAILED_EXPLANATIONS]
         
     def _initialize_strategy_mappings(self) -> Dict[TaskType, Dict[str, Any]]:
         """Initialize strategy mappings for different task types."""
+        # Get user's preferred behavioral steering from dynamic preferences
+        user_behavioral_steering = self._get_user_behavioral_steering()
+        
         return {
             TaskType.CODE_GENERATION: {
                 "primary_strategy": PromptStrategy.PRECISION_TECHNICAL,
                 "behavioral_steering": [
                     BehavioralSteering.IMPLEMENTATION_MODE,
-                    BehavioralSteering.DETAILED_EXPLANATIONS
+                    *user_behavioral_steering  # Use user's preferred communication style
                 ],
                 "context_priority": ["tech_stack", "project_structure", "best_practices"],
                 "optimization_focus": "accuracy_and_completeness"
@@ -375,7 +403,8 @@ class PromptStrategySelector:
                 "primary_strategy": PromptStrategy.PROBLEM_SOLVING,
                 "behavioral_steering": [
                     BehavioralSteering.ANALYSIS_MODE,
-                    BehavioralSteering.STEP_BY_STEP
+                    BehavioralSteering.STEP_BY_STEP,
+                    *user_behavioral_steering  # Use user's preferred communication style
                 ],
                 "context_priority": ["error_context", "tech_stack", "recent_changes"],
                 "optimization_focus": "systematic_analysis"
@@ -384,7 +413,7 @@ class PromptStrategySelector:
                 "primary_strategy": PromptStrategy.COMPREHENSIVE,
                 "behavioral_steering": [
                     BehavioralSteering.CREATIVE_MODE,
-                    BehavioralSteering.DETAILED_EXPLANATIONS
+                    *user_behavioral_steering  # Use user's preferred communication style
                 ],
                 "context_priority": ["project_plans", "scalability_requirements", "best_practices"],
                 "optimization_focus": "strategic_thinking"
@@ -393,7 +422,7 @@ class PromptStrategySelector:
                 "primary_strategy": PromptStrategy.EDUCATIONAL,
                 "behavioral_steering": [
                     BehavioralSteering.TEACHING_MODE,
-                    BehavioralSteering.DETAILED_EXPLANATIONS
+                    *user_behavioral_steering  # Use user's preferred communication style
                 ],
                 "context_priority": ["educational_context", "examples", "fundamentals"],
                 "optimization_focus": "clear_explanations"
@@ -410,7 +439,7 @@ class PromptStrategySelector:
             TaskType.TESTING: {
                 "primary_strategy": PromptStrategy.PRECISION_TECHNICAL,
                 "behavioral_steering": [
-                    BehavioralSteering.DETAILED_EXPLANATIONS,
+                    *user_behavioral_steering,  # Use user's preferred communication style
                     BehavioralSteering.IMPLEMENTATION_MODE
                 ],
                 "context_priority": ["test_patterns", "coverage_requirements", "quality_standards"],
@@ -419,7 +448,7 @@ class PromptStrategySelector:
             TaskType.DOCUMENTATION: {
                 "primary_strategy": PromptStrategy.COMPREHENSIVE,
                 "behavioral_steering": [
-                    BehavioralSteering.DETAILED_EXPLANATIONS,
+                    *user_behavioral_steering,  # Use user's preferred communication style
                     BehavioralSteering.TEACHING_MODE
                 ],
                 "context_priority": ["documentation_standards", "audience", "completeness"],
@@ -429,7 +458,7 @@ class PromptStrategySelector:
                 "primary_strategy": PromptStrategy.PROBLEM_SOLVING,
                 "behavioral_steering": [
                     BehavioralSteering.ANALYSIS_MODE,
-                    BehavioralSteering.DETAILED_EXPLANATIONS
+                    *user_behavioral_steering  # Use user's preferred communication style
                 ],
                 "context_priority": ["analysis_framework", "data_context", "objectives"],
                 "optimization_focus": "thorough_analysis"
@@ -460,9 +489,10 @@ class PromptStrategySelector:
         
         # Handle unknown task type with a default mapping
         if task_type not in self.strategy_mappings:
+            user_behavioral_steering = self._get_user_behavioral_steering()
             base_mapping = {
                 "primary_strategy": PromptStrategy.COMPREHENSIVE,
-                "behavioral_steering": [BehavioralSteering.DETAILED_EXPLANATIONS],
+                "behavioral_steering": user_behavioral_steering,  # Use user's preferred communication style
                 "context_priority": ["conversation_summary", "user_preferences"],
                 "optimization_focus": "balanced_approach"
             }
@@ -482,8 +512,11 @@ class PromptStrategySelector:
         if task_analysis.complexity_score > 0.8:
             if PromptStrategy.COMPREHENSIVE not in [strategy]:
                 strategy = PromptStrategy.COMPREHENSIVE
-            if BehavioralSteering.DETAILED_EXPLANATIONS not in behavioral_steering:
-                behavioral_steering.append(BehavioralSteering.DETAILED_EXPLANATIONS)
+            # Add user's preferred behavioral steering for complex tasks
+            user_behavioral_steering = self._get_user_behavioral_steering()
+            for steering in user_behavioral_steering:
+                if steering not in behavioral_steering:
+                    behavioral_steering.append(steering)
         
         if task_analysis.creativity_needed > 0.6:
             if BehavioralSteering.CREATIVE_MODE not in behavioral_steering:

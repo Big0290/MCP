@@ -1409,6 +1409,8 @@ def enhanced_chat(user_message: str) -> str:
     context-aware enhanced prompts with full conversation history, tech stack,
     project plans, and user preferences.
     
+    NEW: Now includes dynamic instruction processing to handle user commands!
+    
     Args:
         user_message (str): The user's message to enhance with context
         
@@ -1421,16 +1423,40 @@ def enhanced_chat(user_message: str) -> str:
         - User preferences and learning patterns
         - Multiple enhancement strategies
         - Performance monitoring and caching
+        - Dynamic instruction processing (NEW!)
     """
     start_time = time.time()
     
     try:
+        # 🚀 STEP 1: PROCESS DYNAMIC INSTRUCTIONS FIRST
+        try:
+            from dynamic_instruction_processor import process_user_instruction
+            instruction_result = process_user_instruction(user_message)
+            
+            if instruction_result["instructions_found"] > 0:
+                updates = instruction_result["updates_applied"]
+                print(f"🎯 Processed {instruction_result['instructions_found']} user instructions")
+                print(f"✅ Applied {updates['total_updates']} dynamic updates")
+                
+                # Log instruction processing
+                logger.log_client_request(
+                    request=f"INSTRUCTION_PROCESSING: {user_message}",
+                    metadata={
+                        'tool_name': 'dynamic_instruction_processor',
+                        'instructions_found': instruction_result["instructions_found"],
+                        'updates_applied': updates['total_updates'],
+                        'timestamp': datetime.now(timezone.utc).isoformat()
+                    }
+                )
+        except Exception as e:
+            print(f"⚠️ Dynamic instruction processing failed: {e}")
+        
         # LOG THE CLIENT REQUEST
         logger.log_client_request(
             request=user_message,
             metadata={
                 'tool_name': 'enhanced_chat',
-                'context_type': 'comprehensive',
+                'context_type': 'adaptive_with_dynamic_instructions',
                 'timestamp': datetime.now(timezone.utc).isoformat()
             }
         )
@@ -1442,7 +1468,7 @@ def enhanced_chat(user_message: str) -> str:
         enhanced_prompt = prompt_generator.generate_enhanced_prompt(
             user_message=user_message,
             context_type="adaptive",  # 🚀 NOW USING APPE!
-            force_refresh=False,
+            force_refresh=True,  # 🔄 Force refresh to get latest dynamic preferences
             use_appe=True
         )
         
