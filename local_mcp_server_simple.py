@@ -22,6 +22,15 @@ except ImportError:
     MAIN_AVAILABLE = False
     print("⚠️ Main module not available - using fallback functions")
 
+# 🚀 NEW: Import optimized prompt generator
+try:
+    from optimized_prompt_generator import OptimizedPromptGenerator
+    OPTIMIZED_PROMPTS_AVAILABLE = True
+    print("🚀 Optimized prompt generator loaded successfully")
+except ImportError:
+    OPTIMIZED_PROMPTS_AVAILABLE = False
+    print("⚠️ Optimized prompt generator not available, using fallback")
+
 def enhanced_chat(user_message: str) -> str:
     """
     Enhanced chat function that provides context-aware responses
@@ -33,18 +42,36 @@ def enhanced_chat(user_message: str) -> str:
         str: Enhanced response with context
     """
     try:
-        # Use the centralized prompt generator for full context enhancement
-        from prompt_generator import prompt_generator
-        
-        # Generate enhanced prompt with APPE (Adaptive Prompt Precision Engine)
-        enhanced_prompt = prompt_generator.generate_enhanced_prompt(
-            user_message=user_message,
-            context_type="adaptive",  # 🚀 NOW USING APPE!
-            force_refresh=True,
-            use_appe=True
-        )
-        
-        return enhanced_prompt
+        # 🚀 NEW: Use optimized prompt generator for massive performance improvement
+        if OPTIMIZED_PROMPTS_AVAILABLE:
+            generator = OptimizedPromptGenerator()
+            optimized_prompt = generator.generate_optimized_prompt(
+                user_message=user_message,
+                context_type="smart",  # 🚀 NOW USING OPTIMIZED PROMPTS!
+                force_refresh=False
+            )
+            
+            # Log the optimization results
+            original_size = len(str(user_message))
+            optimized_size = len(optimized_prompt)
+            compression_ratio = (1 - optimized_size / max(original_size, 1)) * 100
+            
+            print(f"🚀 Prompt optimization: {original_size:,} → {optimized_size:,} chars ({compression_ratio:.1f}% reduction)")
+            
+            return optimized_prompt
+        else:
+            # Fallback to old prompt generator
+            from prompt_generator import prompt_generator
+            
+            # Generate enhanced prompt with APPE (Adaptive Prompt Precision Engine)
+            enhanced_prompt = prompt_generator.generate_enhanced_prompt(
+                user_message=user_message,
+                context_type="adaptive",
+                force_refresh=True,
+                use_appe=True
+            )
+            
+            return enhanced_prompt
         
     except ImportError:
         # Fallback if prompt generator not available
@@ -88,15 +115,33 @@ def process_prompt_with_context(prompt: str) -> str:
         str: Enhanced prompt with context
     """
     try:
-        # Use the centralized prompt generator
-        from prompt_generator import prompt_generator
-        
-        # Generate enhanced prompt with comprehensive context
-        enhanced_prompt = prompt_generator.generate_enhanced_prompt(
-            user_message=prompt,
-            context_type="comprehensive",
-            force_refresh=False
-        )
+        # 🚀 NEW: Use optimized prompt generator for massive performance improvement
+        if OPTIMIZED_PROMPTS_AVAILABLE:
+            generator = OptimizedPromptGenerator()
+            optimized_prompt = generator.generate_optimized_prompt(
+                user_message=prompt,
+                context_type="smart",  # 🚀 NOW USING OPTIMIZED PROMPTS!
+                force_refresh=False
+            )
+            
+            # Log the optimization results
+            original_size = len(str(prompt))
+            optimized_size = len(optimized_prompt)
+            compression_ratio = (1 - optimized_size / max(original_size, 1)) * 100
+            
+            print(f"🚀 Prompt optimization: {original_size:,} → {optimized_size:,} chars ({compression_ratio:.1f}% reduction)")
+            
+            return optimized_prompt
+        else:
+            # Fallback to old prompt generator
+            from prompt_generator import prompt_generator
+            
+            # Generate enhanced prompt with comprehensive context
+            enhanced_prompt = prompt_generator.generate_enhanced_prompt(
+                user_message=prompt,
+                context_type="comprehensive",
+                force_refresh=False
+            )
         
         return enhanced_prompt
         
@@ -326,63 +371,18 @@ def _get_project_plans() -> str:
 
 def _get_user_preferences() -> str:
     """
-    Get the user preferences (direct JSON file reading to bypass ALL caching!)
+    Get the user preferences using the unified preference manager
     
     Returns:
-        str: User preferences directly from JSON file
+        str: User preferences from unified source of truth
     """
     try:
-        # 🚀 BYPASS ALL CACHING: Read directly from JSON file
-        import json
-        import os
-        from datetime import datetime
+        # 🚀 Use unified preference manager for single source of truth
+        from unified_preference_manager import get_user_preferences_unified
+        return get_user_preferences_unified()
         
-        # Direct file path
-        preferences_file = "./data/dynamic_config/user_preferences.json"
-        
-        if os.path.exists(preferences_file):
-            with open(preferences_file, 'r') as f:
-                data = json.load(f)
-            
-            # Format the preferences directly from JSON data
-            formatted_prefs = "User Preferences:\n"
-            
-            # Preferred tools
-            if 'preferred_tools' in data:
-                for key, value in data['preferred_tools'].items():
-                    formatted_prefs += f"    - Use {value} for {key}\n"
-            
-            # Communication preferences  
-            if 'communication_preferences' in data:
-                for key, value in data['communication_preferences'].items():
-                    formatted_prefs += f"    - Communication {key}: {value}\n"
-            
-            # Technical preferences
-            if 'technical_preferences' in data:
-                for key, value in data['technical_preferences'].items():
-                    formatted_prefs += f"    - Technical {key}: {value}\n"
-            
-            # Workflow preferences
-            if 'workflow_preferences' in data:
-                for pref in data['workflow_preferences']:
-                    formatted_prefs += f"    - Workflow: {pref}\n"
-            
-            # Avoid patterns (IMPORTANT!)
-            if 'avoid_patterns' in data:
-                for pattern in data['avoid_patterns']:
-                    formatted_prefs += f"    - Avoid: {pattern}\n"
-            
-            # Last updated
-            if 'last_updated' in data:
-                formatted_prefs += f"    - Last Updated: {data['last_updated'][:19]}\n"
-            
-            return formatted_prefs
-        
-        else:
-            return "User Preferences: (file not found - using defaults)"
-            
-    except Exception as e:
-        # Fallback to hardcoded if direct file reading fails
+    except ImportError:
+        # Fallback to hardcoded if unified system not available
         fallback_preferences = """User Preferences:
     - Use local SQLite over PostgreSQL for development (fallback)
     - Prefer simple yet powerful solutions
@@ -393,7 +393,7 @@ def _get_user_preferences() -> str:
     - Use MCP protocol for tool integration
     - Maintain local control over data"""
         
-        print(f"⚠️ Direct file reading failed, using fallback: {e}")
+        print(f"⚠️ Unified preference manager not available, using fallback")
         return fallback_preferences
 
 def _get_agent_metadata() -> str:

@@ -1461,16 +1461,36 @@ def enhanced_chat(user_message: str) -> str:
             }
         )
         
-        # Import and use the centralized prompt generator
-        from prompt_generator import prompt_generator
-        
-        # Generate enhanced prompt with APPE (Adaptive Prompt Precision Engine)
-        enhanced_prompt = prompt_generator.generate_enhanced_prompt(
-            user_message=user_message,
-            context_type="adaptive",  # 🚀 NOW USING APPE!
-            force_refresh=True,  # 🔄 Force refresh to get latest dynamic preferences
-            use_appe=True
-        )
+        # 🚀 NEW: Use optimized prompt generator for massive performance improvement
+        try:
+            from optimized_prompt_generator import OptimizedPromptGenerator
+            generator = OptimizedPromptGenerator()
+            optimized_prompt = generator.generate_optimized_prompt(
+                user_message=user_message,
+                context_type="smart",  # 🚀 NOW USING OPTIMIZED PROMPTS!
+                force_refresh=False
+            )
+            
+            # Log the optimization results
+            original_size = len(str(user_message))
+            optimized_size = len(optimized_prompt)
+            compression_ratio = (1 - optimized_size / max(original_size, 1)) * 100
+            
+            print(f"🚀 Prompt optimization: {original_size:,} → {optimized_size:,} chars ({compression_ratio:.1f}% reduction)")
+            
+            enhanced_prompt = optimized_prompt
+            
+        except ImportError:
+            # Fallback to old prompt generator if optimized system not available
+            from prompt_generator import prompt_generator
+            
+            # Generate enhanced prompt with APPE (Adaptive Prompt Precision Engine)
+            enhanced_prompt = prompt_generator.generate_enhanced_prompt(
+                user_message=user_message,
+                context_type="adaptive",  # 🚀 NOW USING APPE!
+                force_refresh=True,  # 🔄 Force refresh to get latest dynamic preferences
+                use_appe=True
+            )
         
         # LOG THE AGENT RESPONSE
         execution_time = int((time.time() - start_time) * 1000)  # Convert to milliseconds

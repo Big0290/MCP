@@ -260,7 +260,13 @@ class PromptGenerator:
             action_history = _extract_action_history(interactions_data)
             tech_stack = _get_tech_stack_definition()
             project_plans = _get_project_plans()
-            user_preferences = _get_user_preferences()
+            # Use unified preference manager for single source of truth
+            try:
+                from unified_preference_manager import get_user_preferences_unified
+                user_preferences = get_user_preferences_unified()
+            except ImportError:
+                # Fallback to old method if unified system not available
+                user_preferences = _get_user_preferences()
             agent_metadata = _get_agent_metadata()
             
             # Detect project patterns and best practices

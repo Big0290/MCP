@@ -220,6 +220,119 @@ if SQLALCHEMY_AVAILABLE and Base:
             self.session_summary = kwargs.get('session_summary', '')
             self.meta_data = kwargs.get('meta_data', {})
 
+    # ============================================================================
+    # DATABASE MODELS
+    # ============================================================================
+    
+    class UnifiedUserPreferences(Base):
+        """Unified user preferences - Single source of truth for all systems"""
+        __tablename__ = 'user_preferences'
+        
+        id = Column(Integer, primary_key=True)
+        user_id = Column(String(50), nullable=False, default='default')
+        preferred_tools = Column(JSON, nullable=False)
+        communication_preferences = Column(JSON, nullable=False)
+        technical_preferences = Column(JSON, nullable=False)
+        workflow_preferences = Column(JSON, nullable=False)
+        avoid_patterns = Column(JSON, nullable=False)
+        custom_preferences = Column(JSON, nullable=True)
+        last_updated = Column(DateTime, nullable=False, default=datetime.utcnow)
+        created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+        
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            # Set defaults if not provided
+            if self.preferred_tools is None:
+                self.preferred_tools = {
+                    "database": "SQLite",
+                    "language": "Python",
+                    "protocol": "MCP"
+                }
+            if self.communication_preferences is None:
+                self.communication_preferences = {
+                    "style": "concise",
+                    "format": "structured_responses",
+                    "level": "technical_expert"
+                }
+            if self.technical_preferences is None:
+                self.technical_preferences = {
+                    "approach": "simple_yet_powerful",
+                    "focus": "conversation_context_memory",
+                    "data_control": "local"
+                }
+            if self.workflow_preferences is None:
+                self.workflow_preferences = [
+                    "Comprehensive logging",
+                    "Structured data models",
+                    "Best practices focus"
+                ]
+            if self.avoid_patterns is None:
+                self.avoid_patterns = []
+            if self.custom_preferences is None:
+                self.custom_preferences = {}
+        
+        def to_dict(self) -> Dict[str, Any]:
+            """Convert to dictionary format"""
+            return {
+                'id': self.id,
+                'user_id': self.user_id,
+                'preferred_tools': self.preferred_tools,
+                'communication_preferences': self.communication_preferences,
+                'technical_preferences': self.technical_preferences,
+                'workflow_preferences': self.workflow_preferences,
+                'avoid_patterns': self.avoid_patterns,
+                'custom_preferences': self.custom_preferences,
+                'last_updated': self.last_updated.isoformat() if self.last_updated else None,
+                'created_at': self.created_at.isoformat() if self.created_at else None
+            }
+        
+        def update_from_dict(self, data: Dict[str, Any]):
+            """Update from dictionary data"""
+            for key, value in data.items():
+                if hasattr(self, key) and key not in ['id', 'created_at']:
+                    setattr(self, key, value)
+            self.last_updated = datetime.utcnow()
+        
+        def get_formatted_preferences(self) -> str:
+            """Get formatted preferences string for prompt injection"""
+            formatted = "User Preferences:\n"
+            
+            # Preferred tools
+            if self.preferred_tools:
+                for key, value in self.preferred_tools.items():
+                    formatted += f"    - Use {value} for {key}\n"
+            
+            # Communication preferences
+            if self.communication_preferences:
+                for key, value in self.communication_preferences.items():
+                    formatted += f"    - Communication {key}: {value}\n"
+            
+            # Technical preferences
+            if self.technical_preferences:
+                for key, value in self.technical_preferences.items():
+                    formatted += f"    - Technical {key}: {value}\n"
+            
+            # Workflow preferences
+            if self.workflow_preferences:
+                for pref in self.workflow_preferences:
+                    formatted += f"    - Workflow: {pref}\n"
+            
+            # Avoid patterns
+            if self.avoid_patterns:
+                for pattern in self.avoid_patterns:
+                    formatted += f"    - Avoid: {pattern}\n"
+            
+            # Custom preferences
+            if self.custom_preferences:
+                for key, value in self.custom_preferences.items():
+                    formatted += f"    - {key}: {value}\n"
+            
+            # Last updated
+            if self.last_updated:
+                formatted += f"    - Last Updated: {self.last_updated.strftime('%Y-%m-%d %H:%M:%S')}\n"
+            
+            return formatted
+
 else:
     # Fallback classes when SQLAlchemy is not available
     class UnifiedInteraction(UnifiedModel):

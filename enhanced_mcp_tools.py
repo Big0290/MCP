@@ -18,6 +18,15 @@ from main import (
     get_system_status, test_conversation_tracking
 )
 
+# 🚀 NEW: Import optimized prompt generator
+try:
+    from optimized_prompt_generator import OptimizedPromptGenerator
+    OPTIMIZED_PROMPTS_AVAILABLE = True
+    print("🚀 Optimized prompt generator loaded in enhanced MCP tools")
+except ImportError:
+    OPTIMIZED_PROMPTS_AVAILABLE = False
+    print("⚠️ Optimized prompt generator not available in enhanced MCP tools")
+
 
 class EnhancedMCPTools:
     """
