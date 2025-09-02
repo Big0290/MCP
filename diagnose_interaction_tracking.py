@@ -65,7 +65,7 @@ def check_interaction_logger():
     print("=== INTERACTION LOGGER DIAGNOSIS ===\n")
     
     try:
-        from interaction_logger import InteractionLogger
+        from interaction_logger import logger
         
         logger = InteractionLogger()
         print("✅ InteractionLogger imported successfully")
@@ -236,7 +236,7 @@ def test_interaction_logging():
     print("=== INTERACTION LOGGING TEST ===\n")
     
     try:
-        from interaction_logger import InteractionLogger
+        from interaction_logger import logger
         
         logger = InteractionLogger()
         

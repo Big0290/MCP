@@ -14,7 +14,7 @@ from prompt_generator import PromptGenerator
 from context_learning_system import ContextLearningSystem
 from smart_caching_system import SmartCachingSystem
 from context_manager import SeamlessContextManager
-from interaction_logger import InteractionLogger
+from interaction_logger import logger
 from session_manager import SessionManager
 
 # Import the embedding system
@@ -40,7 +40,7 @@ class MCPEmbeddingBridge:
         self.context_learner = ContextLearningSystem()
         self.cache_system = SmartCachingSystem()
         self.context_manager = SeamlessContextManager()
-        self.interaction_logger = InteractionLogger()
+        self.interaction_logger = logger
         self.session_manager = SessionManager()
         
         # Integration status

@@ -22,14 +22,8 @@ except ImportError:
     MAIN_AVAILABLE = False
     print("⚠️ Main module not available - using fallback functions")
 
-# 🚀 NEW: Import optimized prompt generator
-try:
-    from optimized_prompt_generator import OptimizedPromptGenerator
-    OPTIMIZED_PROMPTS_AVAILABLE = True
-    print("🚀 Optimized prompt generator loaded successfully")
-except ImportError:
-    OPTIMIZED_PROMPTS_AVAILABLE = False
-    print("⚠️ Optimized prompt generator not available, using fallback")
+# 🚀 NEW: Import optimized prompt generator (lazy import to avoid circular dependencies)
+OPTIMIZED_PROMPTS_AVAILABLE = None  # Will be determined when first needed
 
 def enhanced_chat(user_message: str) -> str:
     """
@@ -42,7 +36,19 @@ def enhanced_chat(user_message: str) -> str:
         str: Enhanced response with context
     """
     try:
-        # 🚀 NEW: Use optimized prompt generator for massive performance improvement
+        # 🚀 NEW: Use optimized prompt generator for massive performance improvement (lazy import)
+        global OPTIMIZED_PROMPTS_AVAILABLE
+        
+        # Lazy import to avoid circular dependencies
+        if OPTIMIZED_PROMPTS_AVAILABLE is None:
+            try:
+                from optimized_prompt_generator import OptimizedPromptGenerator
+                OPTIMIZED_PROMPTS_AVAILABLE = True
+                print("🚀 Optimized prompt generator loaded successfully (lazy import)")
+            except ImportError:
+                OPTIMIZED_PROMPTS_AVAILABLE = False
+                print("⚠️ Optimized prompt generator not available, using fallback")
+        
         if OPTIMIZED_PROMPTS_AVAILABLE:
             generator = OptimizedPromptGenerator()
             optimized_prompt = generator.generate_optimized_prompt(
@@ -115,7 +121,19 @@ def process_prompt_with_context(prompt: str) -> str:
         str: Enhanced prompt with context
     """
     try:
-        # 🚀 NEW: Use optimized prompt generator for massive performance improvement
+        # 🚀 NEW: Use optimized prompt generator for massive performance improvement (lazy import)
+        global OPTIMIZED_PROMPTS_AVAILABLE
+        
+        # Lazy import to avoid circular dependencies
+        if OPTIMIZED_PROMPTS_AVAILABLE is None:
+            try:
+                from optimized_prompt_generator import OptimizedPromptGenerator
+                OPTIMIZED_PROMPTS_AVAILABLE = True
+                print("🚀 Optimized prompt generator loaded successfully (lazy import)")
+            except ImportError:
+                OPTIMIZED_PROMPTS_AVAILABLE = False
+                print("⚠️ Optimized prompt generator not available, using fallback")
+        
         if OPTIMIZED_PROMPTS_AVAILABLE:
             generator = OptimizedPromptGenerator()
             optimized_prompt = generator.generate_optimized_prompt(
@@ -136,10 +154,10 @@ def process_prompt_with_context(prompt: str) -> str:
             # Fallback to old prompt generator
             from prompt_generator import prompt_generator
             
-            # Generate enhanced prompt with comprehensive context
+            # Generate enhanced prompt with smart context (not comprehensive)
             enhanced_prompt = prompt_generator.generate_enhanced_prompt(
                 user_message=prompt,
-                context_type="comprehensive",
+                context_type="smart",
                 force_refresh=False
             )
         
@@ -308,20 +326,62 @@ def _extract_action_history(interactions: list) -> str:
 
 def _get_tech_stack_definition() -> str:
     """
-    Get the tech stack definition
+    Get the tech stack definition using SmartContextInjector for project-specific detection
     
     Returns:
-        str: Tech stack definition
+        str: Tech stack definition based on detected project
     """
     try:
-        tech_stack = """Tech Stack: Python 3.x, SQLite database, MCP (Model Context Protocol), 
-    FastMCP server, SQLAlchemy ORM, threading support, JSON data handling, 
-    datetime management, hashlib for data integrity, dataclasses for structured data."""
+        # Use SmartContextInjector to detect the actual project's tech stack
+        from smart_context_injector import SmartContextInjector
         
-        return tech_stack
+        injector = SmartContextInjector()
+        detected_stack = injector.detect_tech_stack()
+        
+        if detected_stack and detected_stack.get('project_type') != 'unknown':
+            # Build tech stack string from detected information
+            tech_parts = []
+            
+            # Primary language
+            if detected_stack.get('primary_language'):
+                tech_parts.append(detected_stack['primary_language'])
+            
+            # Frameworks
+            if detected_stack.get('frameworks'):
+                tech_parts.extend(detected_stack['frameworks'])
+            
+            # Databases
+            if detected_stack.get('databases'):
+                tech_parts.extend(detected_stack['databases'])
+            
+            # Build tools
+            if detected_stack.get('build_tools'):
+                tech_parts.extend(detected_stack['build_tools'])
+            
+            # Package managers
+            if detected_stack.get('package_managers'):
+                tech_parts.extend(detected_stack['package_managers'])
+            
+            # Create tech stack string
+            tech_stack = f"Tech Stack: {', '.join(tech_parts)}"
+            
+            # Add confidence score
+            confidence = detected_stack.get('confidence_score', 0.0)
+            tech_stack += f" (detected with {confidence:.1%} confidence)"
+            
+            return tech_stack
+        else:
+            # Fallback to MCP system tech stack if detection fails
+            return """Tech Stack: Python 3.x, SQLite database, MCP (Model Context Protocol), 
+FastMCP server, SQLAlchemy ORM, threading support, JSON data handling, 
+datetime management, hashlib for data integrity, dataclasses for structured data."""
         
     except Exception as e:
-        return f"Error getting tech stack: {str(e)}"
+        # Fallback to MCP system tech stack on error
+        return f"""Tech Stack: Python 3.x, SQLite database, MCP (Model Context Protocol), 
+FastMCP server, SQLAlchemy ORM, threading support, JSON data handling, 
+datetime management, hashlib for data integrity, dataclasses for structured data.
+(Detection error: {str(e)})"""
 
 def _get_project_plans() -> str:
     """
@@ -371,15 +431,28 @@ def _get_project_plans() -> str:
 
 def _get_user_preferences() -> str:
     """
-    Get the user preferences using the unified preference manager
+    Get adaptive user preferences based on detected project tech stack
     
     Returns:
-        str: User preferences from unified source of truth
+        str: User preferences adapted to the current project
     """
     try:
-        # 🚀 Use unified preference manager for single source of truth
+        # Get base preferences from unified preference manager
         from unified_preference_manager import get_user_preferences_unified
-        return get_user_preferences_unified()
+        base_preferences = get_user_preferences_unified()
+        
+        # Get detected tech stack to adapt preferences
+        from smart_context_injector import SmartContextInjector
+        injector = SmartContextInjector()
+        detected_stack = injector.detect_tech_stack()
+        
+        if detected_stack and detected_stack.get('project_type') != 'unknown':
+            # Adapt preferences based on detected project
+            adapted_preferences = _adapt_preferences_to_project(base_preferences, detected_stack)
+            return adapted_preferences
+        else:
+            # Return base preferences if detection fails
+            return base_preferences
         
     except ImportError:
         # Fallback to hardcoded if unified system not available
@@ -395,6 +468,21 @@ def _get_user_preferences() -> str:
         
         print(f"⚠️ Unified preference manager not available, using fallback")
         return fallback_preferences
+
+def _adapt_preferences_to_project(base_preferences: str, detected_stack: dict) -> str:
+    """
+    Return user preferences unchanged - tech stack adaptation is handled separately
+    
+    Args:
+        base_preferences: Original preferences from unified manager
+        detected_stack: Detected tech stack information (unused - kept for compatibility)
+        
+    Returns:
+        str: Unchanged user preferences from database
+    """
+    # User preferences should remain unchanged - tech stack information
+    # is handled separately in the tech stack section of prompts
+    return base_preferences
 
 def _get_agent_metadata() -> str:
     """

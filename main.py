@@ -278,10 +278,10 @@ def agent_interaction(prompt: str) -> str:
             # Import the centralized prompt generator
             from prompt_generator import prompt_generator
             
-            # Generate enhanced prompt with comprehensive context
+            # Generate enhanced prompt with smart context (not comprehensive)
             enhanced_prompt = prompt_generator.generate_enhanced_prompt(
                 user_message=prompt,
-                context_type="comprehensive",
+                context_type="smart",
                 force_refresh=False
             )
             
@@ -1402,6 +1402,21 @@ def test_automatic_context_injection(message: str = "Hello, test message!") -> s
         return f"❌ ERROR: Test failed with error: {str(e)}"
 
 @mcp.tool()
+def agent_interaction(prompt: str) -> str:
+    """
+    Agent interaction function that provides context-aware responses.
+    
+    This function is called by the MCP system and simply delegates to enhanced_chat
+    to avoid duplication and ensure consistency.
+    
+    Args:
+        prompt (str): The user's prompt/message
+        
+    Returns:
+        str: Enhanced response with context injection
+    """
+    return enhanced_chat(prompt)
+
 def enhanced_chat(user_message: str) -> str:
     """Enhanced chat function that provides context-aware responses using the prompt generator.
     
@@ -1578,6 +1593,402 @@ There was an error generating the enhanced prompt, but I'm here to help!
         )
         
         return error_response
+
+# ============================================================================
+# FUNCTION ANALYSIS TOOLS
+# ============================================================================
+
+@mcp.tool()
+def analyze_project_functions(project_path: str = ".", force_refresh: bool = False) -> str:
+    """Analyze all functions and classes in a project.
+    
+    This tool provides comprehensive analysis of all functions and classes in a project,
+    including their locations, arguments, docstrings, and relationships. It's designed
+    to be called on-demand when detailed function information is needed.
+    
+    Args:
+        project_path: Path to the project directory (default: current directory)
+        force_refresh: Force re-analysis even if already analyzed
+        
+    Returns:
+        Formatted string with comprehensive function analysis results
+    """
+    try:
+        from mcp_function_analyzer_tool import analyze_project_functions_mcp
+        return analyze_project_functions_mcp(project_path, force_refresh)
+    except ImportError as e:
+        return f"❌ Function analyzer not available: {str(e)}"
+    except Exception as e:
+        return f"❌ Function analysis failed: {str(e)}"
+
+@mcp.tool()
+def search_functions(query: str, project_path: str = ".") -> str:
+    """Search for functions by name, docstring, or file.
+    
+    This tool allows you to search for functions across the project using various
+    criteria like function name, docstring content, or file path. Useful for
+    finding specific functionality or understanding code organization.
+    
+    Args:
+        query: Search query to match against function names, docstrings, or files
+        project_path: Path to the project directory (default: current directory)
+        
+    Returns:
+        Formatted string with search results
+    """
+    try:
+        from mcp_function_analyzer_tool import search_functions_mcp
+        return search_functions_mcp(query, project_path)
+    except ImportError as e:
+        return f"❌ Function analyzer not available: {str(e)}"
+    except Exception as e:
+        return f"❌ Function search failed: {str(e)}"
+
+@mcp.tool()
+def get_function_details(function_name: str, project_path: str = ".") -> str:
+    """Get detailed information about a specific function.
+    
+    This tool provides comprehensive details about a specific function, including
+    its arguments, docstring, location, and type (regular, async, class method).
+    Essential for understanding function behavior and usage.
+    
+    Args:
+        function_name: Name of the function to analyze
+        project_path: Path to the project directory (default: current directory)
+        
+    Returns:
+        Formatted string with detailed function information
+    """
+    try:
+        from mcp_function_analyzer_tool import get_function_details_mcp
+        return get_function_details_mcp(function_name, project_path)
+    except ImportError as e:
+        return f"❌ Function analyzer not available: {str(e)}"
+    except Exception as e:
+        return f"❌ Function details retrieval failed: {str(e)}"
+
+@mcp.tool()
+def get_functions_by_file(file_path: str, project_path: str = ".") -> str:
+    """Get all functions in a specific file.
+    
+    This tool lists all functions defined in a specific file, useful for
+    understanding the structure and functionality of individual modules.
+    
+    Args:
+        file_path: Path to the file to analyze
+        project_path: Path to the project directory (default: current directory)
+        
+    Returns:
+        Formatted string with all functions in the specified file
+    """
+    try:
+        from mcp_function_analyzer_tool import get_functions_by_file_mcp
+        return get_functions_by_file_mcp(file_path, project_path)
+    except ImportError as e:
+        return f"❌ Function analyzer not available: {str(e)}"
+    except Exception as e:
+        return f"❌ File function analysis failed: {str(e)}"
+
+@mcp.tool()
+def get_project_summary() -> str:
+    """Get a compact project summary.
+    
+    This tool provides a high-level overview of the project's function and class
+    structure, including counts and top files by function density.
+    
+    Returns:
+        Formatted string with project summary
+    """
+    try:
+        from mcp_function_analyzer_tool import get_project_summary_mcp
+        return get_project_summary_mcp()
+    except ImportError as e:
+        return f"❌ Function analyzer not available: {str(e)}"
+    except Exception as e:
+        return f"❌ Project summary failed: {str(e)}"
+
+# ============================================================================
+# USER PREFERENCE MANAGEMENT TOOLS
+# ============================================================================
+
+@mcp.tool()
+def add_user_preference(category: str, key: str, value: str, user_id: str = 'default') -> str:
+    """Add a new user preference to the database.
+    
+    This tool allows you to add new preferences to your user profile, which will
+    be automatically included in all future prompt generations.
+    
+    Args:
+        category (str): The preference category (e.g., 'communication', 'technical', 'workflow', 'avoid')
+        key (str): The preference key (e.g., 'style', 'approach', 'format')
+        value (str): The preference value (e.g., 'concise', 'simple_yet_powerful', 'structured_responses')
+        user_id (str): User ID (default: 'default')
+        
+    Returns:
+        str: Success message with the added preference or error message
+        
+    Examples:
+        - add_user_preference('communication', 'tone', 'friendly')
+        - add_user_preference('technical', 'debugging', 'verbose_logging')
+        - add_user_preference('workflow', 'testing', 'test_driven_development')
+        - add_user_preference('avoid', 'patterns', 'long_explanations')
+    """
+    try:
+        from unified_preference_manager import get_unified_preference_manager
+        
+        manager = get_unified_preference_manager(user_id)
+        current_prefs = manager.get_preferences()
+        
+        # Add the new preference based on category
+        if category == 'communication':
+            current_prefs.communication_preferences[key] = value
+        elif category == 'technical':
+            current_prefs.technical_preferences[key] = value
+        elif category == 'workflow':
+            if value not in current_prefs.workflow_preferences:
+                current_prefs.workflow_preferences.append(value)
+        elif category == 'avoid':
+            if value not in current_prefs.avoid_patterns:
+                current_prefs.avoid_patterns.append(value)
+        elif category == 'tools':
+            current_prefs.preferred_tools[key] = value
+        else:
+            return f"❌ Invalid category '{category}'. Valid categories: communication, technical, workflow, avoid, tools"
+        
+        # Update preferences in database
+        success = manager.update_preferences({
+            'communication_preferences': current_prefs.communication_preferences,
+            'technical_preferences': current_prefs.technical_preferences,
+            'workflow_preferences': current_prefs.workflow_preferences,
+            'avoid_patterns': current_prefs.avoid_patterns,
+            'preferred_tools': current_prefs.preferred_tools
+        })
+        
+        if success:
+            return f"✅ Added preference: {category}.{key} = '{value}'"
+        else:
+            return f"❌ Failed to add preference: {category}.{key} = '{value}'"
+            
+    except Exception as e:
+        return f"❌ Error adding preference: {str(e)}"
+
+@mcp.tool()
+def remove_user_preference(category: str, key: str = None, value: str = None, user_id: str = 'default') -> str:
+    """Remove a user preference from the database.
+    
+    This tool allows you to remove existing preferences from your user profile.
+    
+    Args:
+        category (str): The preference category (e.g., 'communication', 'technical', 'workflow', 'avoid')
+        key (str, optional): The preference key to remove (for communication/technical/tools categories)
+        value (str, optional): The preference value to remove (for workflow/avoid categories)
+        user_id (str): User ID (default: 'default')
+        
+    Returns:
+        str: Success message with the removed preference or error message
+        
+    Examples:
+        - remove_user_preference('communication', 'tone')
+        - remove_user_preference('technical', 'debugging')
+        - remove_user_preference('workflow', value='test_driven_development')
+        - remove_user_preference('avoid', value='long_explanations')
+    """
+    try:
+        from unified_preference_manager import get_unified_preference_manager
+        
+        manager = get_unified_preference_manager(user_id)
+        current_prefs = manager.get_preferences()
+        
+        removed_items = []
+        
+        # Remove the preference based on category
+        if category == 'communication' and key:
+            if key in current_prefs.communication_preferences:
+                removed_value = current_prefs.communication_preferences.pop(key)
+                removed_items.append(f"{category}.{key} = '{removed_value}'")
+            else:
+                return f"❌ Preference not found: {category}.{key}"
+                
+        elif category == 'technical' and key:
+            if key in current_prefs.technical_preferences:
+                removed_value = current_prefs.technical_preferences.pop(key)
+                removed_items.append(f"{category}.{key} = '{removed_value}'")
+            else:
+                return f"❌ Preference not found: {category}.{key}"
+                
+        elif category == 'workflow' and value:
+            if value in current_prefs.workflow_preferences:
+                current_prefs.workflow_preferences.remove(value)
+                removed_items.append(f"{category}: '{value}'")
+            else:
+                return f"❌ Preference not found: {category}: '{value}'"
+                
+        elif category == 'avoid' and value:
+            if value in current_prefs.avoid_patterns:
+                current_prefs.avoid_patterns.remove(value)
+                removed_items.append(f"{category}: '{value}'")
+            else:
+                return f"❌ Preference not found: {category}: '{value}'"
+                
+        elif category == 'tools' and key:
+            if key in current_prefs.preferred_tools:
+                removed_value = current_prefs.preferred_tools.pop(key)
+                removed_items.append(f"{category}.{key} = '{removed_value}'")
+            else:
+                return f"❌ Preference not found: {category}.{key}"
+        else:
+            return f"❌ Invalid parameters. For {category}, provide {'key' if category in ['communication', 'technical', 'tools'] else 'value'}"
+        
+        # Update preferences in database
+        success = manager.update_preferences({
+            'communication_preferences': current_prefs.communication_preferences,
+            'technical_preferences': current_prefs.technical_preferences,
+            'workflow_preferences': current_prefs.workflow_preferences,
+            'avoid_patterns': current_prefs.avoid_patterns,
+            'preferred_tools': current_prefs.preferred_tools
+        })
+        
+        if success and removed_items:
+            return f"✅ Removed preference(s): {', '.join(removed_items)}"
+        else:
+            return f"❌ Failed to remove preference"
+            
+    except Exception as e:
+        return f"❌ Error removing preference: {str(e)}"
+
+@mcp.tool()
+def update_user_preference(category: str, key: str, value: str, user_id: str = 'default') -> str:
+    """Update an existing user preference in the database.
+    
+    This tool allows you to modify existing preferences in your user profile.
+    
+    Args:
+        category (str): The preference category (e.g., 'communication', 'technical', 'tools')
+        key (str): The preference key to update
+        value (str): The new preference value
+        user_id (str): User ID (default: 'default')
+        
+    Returns:
+        str: Success message with the updated preference or error message
+        
+    Examples:
+        - update_user_preference('communication', 'style', 'detailed')
+        - update_user_preference('technical', 'approach', 'enterprise_grade')
+        - update_user_preference('tools', 'database', 'PostgreSQL')
+    """
+    try:
+        from unified_preference_manager import get_unified_preference_manager
+        
+        manager = get_unified_preference_manager(user_id)
+        current_prefs = manager.get_preferences()
+        
+        old_value = None
+        
+        # Update the preference based on category
+        if category == 'communication':
+            if key in current_prefs.communication_preferences:
+                old_value = current_prefs.communication_preferences[key]
+                current_prefs.communication_preferences[key] = value
+            else:
+                return f"❌ Preference not found: {category}.{key}"
+                
+        elif category == 'technical':
+            if key in current_prefs.technical_preferences:
+                old_value = current_prefs.technical_preferences[key]
+                current_prefs.technical_preferences[key] = value
+            else:
+                return f"❌ Preference not found: {category}.{key}"
+                
+        elif category == 'tools':
+            if key in current_prefs.preferred_tools:
+                old_value = current_prefs.preferred_tools[key]
+                current_prefs.preferred_tools[key] = value
+            else:
+                return f"❌ Preference not found: {category}.{key}"
+        else:
+            return f"❌ Invalid category '{category}'. Valid categories: communication, technical, tools"
+        
+        # Update preferences in database
+        success = manager.update_preferences({
+            'communication_preferences': current_prefs.communication_preferences,
+            'technical_preferences': current_prefs.technical_preferences,
+            'preferred_tools': current_prefs.preferred_tools
+        })
+        
+        if success:
+            return f"✅ Updated preference: {category}.{key} = '{old_value}' → '{value}'"
+        else:
+            return f"❌ Failed to update preference: {category}.{key}"
+            
+    except Exception as e:
+        return f"❌ Error updating preference: {str(e)}"
+
+@mcp.tool()
+def list_user_preferences(user_id: str = 'default') -> str:
+    """List all current user preferences from the database.
+    
+    This tool shows you all your current preferences organized by category.
+    
+    Args:
+        user_id (str): User ID (default: 'default')
+        
+    Returns:
+        str: Formatted list of all user preferences
+        
+    Features:
+        - Shows all preference categories
+        - Displays key-value pairs for structured preferences
+        - Lists array items for workflow and avoid preferences
+        - Shows last updated timestamp
+    """
+    try:
+        from unified_preference_manager import get_user_preferences_unified
+        
+        preferences = get_user_preferences_unified(user_id)
+        
+        return f"📋 Current User Preferences:\n{preferences}"
+        
+    except Exception as e:
+        return f"❌ Error listing preferences: {str(e)}"
+
+@mcp.tool()
+def reset_user_preferences(user_id: str = 'default') -> str:
+    """Clear all user preferences completely.
+    
+    This tool will clear all your preferences and leave them empty.
+    Use with caution as this action cannot be undone.
+    
+    Args:
+        user_id (str): User ID (default: 'default')
+        
+    Returns:
+        str: Success message or error message
+        
+    Warning:
+        This action will permanently delete all your custom preferences!
+    """
+    try:
+        from unified_preference_manager import get_unified_preference_manager
+        
+        manager = get_unified_preference_manager(user_id)
+        
+        # Clear all preferences (empty state)
+        success = manager.update_preferences({
+            'preferred_tools': {},
+            'communication_preferences': {},
+            'technical_preferences': {},
+            'workflow_preferences': [],
+            'avoid_patterns': [],
+            'custom_preferences': {}
+        })
+        
+        if success:
+            return "✅ User preferences cleared completely"
+        else:
+            return "❌ Failed to clear preferences"
+            
+    except Exception as e:
+        return f"❌ Error resetting preferences: {str(e)}"
 
 def background_monitoring():
     """Background daemon thread that provides continuous system health monitoring and metrics collection.

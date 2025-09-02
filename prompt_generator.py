@@ -260,13 +260,8 @@ class PromptGenerator:
             action_history = _extract_action_history(interactions_data)
             tech_stack = _get_tech_stack_definition()
             project_plans = _get_project_plans()
-            # Use unified preference manager for single source of truth
-            try:
-                from unified_preference_manager import get_user_preferences_unified
-                user_preferences = get_user_preferences_unified()
-            except ImportError:
-                # Fallback to old method if unified system not available
-                user_preferences = _get_user_preferences()
+            # Use adaptive user preferences that adapt to the detected project
+            user_preferences = _get_user_preferences()
             agent_metadata = _get_agent_metadata()
             
             # Detect project patterns and best practices
@@ -275,11 +270,12 @@ class PromptGenerator:
             common_issues = self._get_common_issues(context_type)
             development_workflow = self._get_development_workflow(context_type)
             
-            # Analyze project structure for enhanced context
+            # Analyze project structure for enhanced context (without functions/classes)
             project_structure = self._analyze_project_structure()
             project_overview = self._generate_project_overview(project_structure)
-            function_summary = self._get_function_summary(project_structure)
-            class_summary = self._get_class_summary(project_structure)
+            # Function and class analysis moved to standalone tools
+            function_summary = None
+            class_summary = None
             
             # Calculate confidence score based on available data
             confidence_score = self._calculate_confidence_score(
@@ -373,9 +369,7 @@ USER MESSAGE: {user_message}
 
 {context.project_overview if context.project_overview else "Project structure analysis not available"}
 
-{context.function_summary if context.function_summary else "Function summary not available"}
-
-{context.class_summary if context.class_summary else "Class summary not available"}
+💡 **Function & Class Analysis**: Use the `analyze_project_functions()` tool for detailed function and class information when needed.
 
 === 🎯 INSTRUCTIONS ===
 Please respond to the user's message above, taking into account:
@@ -843,7 +837,7 @@ Error: {error_message}
                 'technology_stack': set()
             }
             
-            # Walk through project directory
+            # Walk through project directory (limited to 2 levels deep)
             for root, dirs, files in os.walk(project_root):
                 # Skip common directories that don't add value
                 dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ['__pycache__', 'node_modules', 'venv', 'env', 'ui_env']]
@@ -851,6 +845,12 @@ Error: {error_message}
                 rel_path = os.path.relpath(root, project_root)
                 if rel_path == '.':
                     rel_path = 'root'
+                
+                # Limit to 2 levels deep to reduce memory usage
+                depth = len(rel_path.split(os.sep)) if rel_path != 'root' else 0
+                if depth > 2:
+                    dirs[:] = []  # Don't recurse deeper
+                    continue
                 
                 project_structure['directories'][rel_path] = {
                     'path': root,
@@ -967,44 +967,34 @@ Error: {error_message}
             overview.append(f"🔧 Technology Stack: {', '.join(project_structure['technology_stack'])}")
             overview.append("")
             
-            # Directory structure
+            # Directory structure (compact - only show important directories)
             overview.append("📂 Directory Structure:")
-            for dir_path, dir_info in project_structure['directories'].items():
-                if dir_path == 'root':
-                    overview.append(f"  📁 / (root)")
-                else:
-                    overview.append(f"  📁 /{dir_path}/")
-                
-                # Show key files in each directory
-                key_files = [f for f in dir_info['files'] if not f.startswith('.') and f not in ['__init__.py']]
-                if key_files:
-                    for file in key_files[:5]:  # Show first 5 files
-                        overview.append(f"    📄 {file}")
-                    if len(key_files) > 5:
-                        overview.append(f"    ... and {len(key_files) - 5} more files")
-                overview.append("")
+            important_dirs = ['root'] + [d for d in project_structure['directories'].keys() 
+                                       if d != 'root' and not d.startswith('cleanup_backup') 
+                                       and not d.startswith('backup_') and d.count('/') <= 1]
             
-            # Function summary
-            if project_structure['functions']:
-                overview.append("🔧 Key Functions:")
-                func_count = 0
-                for func_name, func_info in list(project_structure['functions'].items())[:10]:  # Show first 10
-                    overview.append(f"  ⚡ {func_info['name']}() - {func_info['docstring'][:100]}...")
-                    func_count += 1
-                if len(project_structure['functions']) > 10:
-                    overview.append(f"  ... and {len(project_structure['functions']) - 10} more functions")
-                overview.append("")
+            for dir_path in important_dirs[:8]:  # Limit to 8 most important directories
+                if dir_path in project_structure['directories']:
+                    dir_info = project_structure['directories'][dir_path]
+                    if dir_path == 'root':
+                        overview.append(f"  📁 / (root)")
+                    else:
+                        overview.append(f"  📁 /{dir_path}/")
+                    
+                    # Show key files in each directory
+                    key_files = [f for f in dir_info['files'] if not f.startswith('.') and f not in ['__init__.py']]
+                    if key_files:
+                        for file in key_files[:4]:  # Show first 4 files
+                            overview.append(f"    📄 {file}")
+                        if len(key_files) > 4:
+                            overview.append(f"    ... and {len(key_files) - 4} more files")
+                    overview.append("")
             
-            # Class summary
-            if project_structure['classes']:
-                overview.append("🏗️ Key Classes:")
-                class_count = 0
-                for class_name, class_info in list(project_structure['classes'].items())[:10]:  # Show first 10
-                    overview.append(f"  🏛️ {class_info['name']} - {class_info['docstring'][:100]}...")
-                    class_count += 1
-                if len(project_structure['classes']) > 10:
-                    overview.append(f"  ... and {len(project_structure['classes']) - 10} more classes")
-                overview.append("")
+            if len(important_dirs) > 8:
+                overview.append(f"  ... and {len(important_dirs) - 8} more directories")
+            
+            # Function and class analysis moved to standalone tools
+            # Use analyze_project_functions() tool for detailed function information
             
             # File type summary
             file_types = {}
@@ -1023,7 +1013,7 @@ Error: {error_message}
             return "⚠️ Project overview generation failed"
     
     def _get_function_summary(self, project_structure: Dict[str, Any]) -> str:
-        """Generate a detailed function summary for context injection"""
+        """Generate a compact function summary for context injection"""
         try:
             if not project_structure['functions']:
                 return "No functions found in project structure"
@@ -1031,7 +1021,7 @@ Error: {error_message}
             summary = []
             summary.append("=== 🔧 FUNCTION SUMMARY ===")
             
-            # Group functions by file
+            # Group functions by file and limit to most important files
             functions_by_file = {}
             for func_name, func_info in project_structure['functions'].items():
                 file_path = func_info['file']
@@ -1039,16 +1029,31 @@ Error: {error_message}
                     functions_by_file[file_path] = []
                 functions_by_file[file_path].append(func_info)
             
-            # Generate summary by file
-            for file_path, functions in functions_by_file.items():
+            # Sort files by importance (main files first, then by function count)
+            file_priority = ['main.py', 'app.py', 'server.py', 'index.py', 'run.py']
+            sorted_files = sorted(functions_by_file.items(), 
+                                key=lambda x: (file_priority.index(x[0]) if x[0] in file_priority else 999, -len(x[1])))
+            
+            # Generate compact summary by file (limit to top 10 files)
+            for file_path, functions in sorted_files[:10]:
                 summary.append(f"📁 {file_path}:")
-                for func_info in functions:
-                    args_str = ", ".join(func_info['args']) if func_info['args'] else "no args"
+                # Show only first 5 functions per file to keep it compact
+                for func_info in functions[:5]:
+                    args_str = ", ".join(func_info['args'][:3]) if func_info['args'] else "no args"
+                    if len(func_info['args']) > 3:
+                        args_str += "..."
                     summary.append(f"  ⚡ {func_info['name']}({args_str})")
-                    if func_info['docstring'] and func_info['docstring'] != "No docstring":
-                        doc_preview = func_info['docstring'][:80] + "..." if len(func_info['docstring']) > 80 else func_info['docstring']
-                        summary.append(f"    💬 {doc_preview}")
+                    # Only show docstring if it's short and meaningful
+                    if (func_info['docstring'] and func_info['docstring'] != "No docstring" 
+                        and len(func_info['docstring']) < 60):
+                        summary.append(f"    💬 {func_info['docstring']}")
+                
+                if len(functions) > 5:
+                    summary.append(f"  ... and {len(functions) - 5} more functions")
                 summary.append("")
+            
+            if len(functions_by_file) > 10:
+                summary.append(f"... and {len(functions_by_file) - 10} more files")
             
             return "\n".join(summary)
             
@@ -1057,7 +1062,7 @@ Error: {error_message}
             return "⚠️ Function summary generation failed"
     
     def _get_class_summary(self, project_structure: Dict[str, Any]) -> str:
-        """Generate a detailed class summary for context injection"""
+        """Generate a compact class summary for context injection"""
         try:
             if not project_structure['classes']:
                 return "No classes found in project structure"
@@ -1065,7 +1070,7 @@ Error: {error_message}
             summary = []
             summary.append("=== 🏗️ CLASS SUMMARY ===")
             
-            # Group classes by file
+            # Group classes by file and limit to most important files
             classes_by_file = {}
             for class_name, class_info in project_structure['classes'].items():
                 file_path = class_info['file']
@@ -1073,16 +1078,31 @@ Error: {error_message}
                     classes_by_file[file_path] = []
                 classes_by_file[file_path].append(class_info)
             
-            # Generate summary by file
-            for file_path, classes in classes_by_file.items():
+            # Sort files by importance (main files first, then by class count)
+            file_priority = ['main.py', 'app.py', 'server.py', 'index.py', 'run.py']
+            sorted_files = sorted(classes_by_file.items(), 
+                                key=lambda x: (file_priority.index(x[0]) if x[0] in file_priority else 999, -len(x[1])))
+            
+            # Generate compact summary by file (limit to top 8 files)
+            for file_path, classes in sorted_files[:8]:
                 summary.append(f"📁 {file_path}:")
-                for class_info in classes:
-                    bases_str = f"({', '.join(class_info['bases'])})" if class_info['bases'] else ""
+                # Show only first 3 classes per file to keep it compact
+                for class_info in classes[:3]:
+                    bases_str = f"({', '.join(class_info['bases'][:2])})" if class_info['bases'] else ""
+                    if len(class_info['bases']) > 2:
+                        bases_str = f"({', '.join(class_info['bases'][:2])}...)"
                     summary.append(f"  🏛️ class {class_info['name']}{bases_str}")
-                    if class_info['docstring'] and class_info['docstring'] != "No docstring":
-                        doc_preview = class_info['docstring'][:80] + "..." if len(class_info['docstring']) > 80 else class_info['docstring']
-                        summary.append(f"    💬 {doc_preview}")
+                    # Only show docstring if it's short and meaningful
+                    if (class_info['docstring'] and class_info['docstring'] != "No docstring" 
+                        and len(class_info['docstring']) < 60):
+                        summary.append(f"    💬 {class_info['docstring']}")
+                
+                if len(classes) > 3:
+                    summary.append(f"  ... and {len(classes) - 3} more classes")
                 summary.append("")
+            
+            if len(classes_by_file) > 8:
+                summary.append(f"... and {len(classes_by_file) - 8} more files")
             
             return "\n".join(summary)
             
@@ -1116,7 +1136,7 @@ Error: {error_message}
             
         elif any(word in message_lower for word in ['create', 'build', 'implement', 'develop']):
             intent_analysis['primary_intent'] = 'development'
-            intent_analysis['required_sections'] = ['project_structure', 'tech_stack', 'development_workflow', 'function_summary', 'class_summary']
+            intent_analysis['required_sections'] = ['project_structure', 'tech_stack', 'development_workflow']
             
         elif any(word in message_lower for word in ['optimize', 'improve', 'enhance', 'refactor']):
             intent_analysis['primary_intent'] = 'optimization'
@@ -1208,11 +1228,9 @@ Error: {error_message}
                 else:
                     prompt_parts.append(f"🏗️ PROJECT: {context.project_overview.split('📁')[0] if '📁' in context.project_overview else context.project_overview[:400]}...")
             
-            if context.function_summary and intent_analysis['complexity'] == 'high':
-                prompt_parts.append(f"🔧 AVAILABLE FUNCTIONS:\n{context.function_summary}")
-            
-            if context.class_summary and intent_analysis['complexity'] == 'high':
-                prompt_parts.append(f"🏛️ AVAILABLE CLASSES:\n{context.class_summary}")
+            # Function and class analysis available via standalone tools
+            if intent_analysis['complexity'] == 'high':
+                prompt_parts.append("💡 **Function & Class Analysis**: Use `analyze_project_functions()` tool for detailed function and class information when needed.")
         
         # Add confidence score if low
         if context.confidence_score < 0.5:

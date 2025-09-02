@@ -26,12 +26,12 @@ from datetime import datetime, timedelta
 try:
     from context_learning_system import ContextLearningSystem
     from smart_caching_system import SmartCachingSystem
-    from interaction_logger import InteractionLogger
+    from interaction_logger import logger
 except ImportError:
     # Fallback for testing
     ContextLearningSystem = None
     SmartCachingSystem = None
-    InteractionLogger = None
+    logger = None
 
 
 class TaskType(Enum):
@@ -1375,8 +1375,8 @@ class AdaptivePromptEngine:
                 self.context_learning = ContextLearningSystem(learning_enabled=True)
             if SmartCachingSystem:
                 self.smart_cache = SmartCachingSystem()
-            if InteractionLogger:
-                self.interaction_logger = InteractionLogger()
+            if logger:
+                self.interaction_logger = logger
         except Exception as e:
             print(f"Warning: Could not initialize all integrations: {e}")
     

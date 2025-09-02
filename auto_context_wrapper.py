@@ -132,17 +132,28 @@ AGENT METADATA: {_get_agent_metadata()}
     def _build_enhanced_prompt(self, original_prompt: str, enhanced_context: str) -> str:
         """Build the final enhanced prompt with injected context"""
         try:
-            # Use the centralized prompt generator for auto-enhanced prompts
-            from prompt_generator import prompt_generator
-            
-            # Generate auto-enhanced prompt
-            enhanced_prompt = prompt_generator.generate_enhanced_prompt(
-                user_message=original_prompt,
-                context_type="comprehensive",
-                force_refresh=False
-            )
-            
-            return enhanced_prompt
+            # 🚀 NEW: Use optimized prompt generator for clean, efficient prompts
+            try:
+                from optimized_prompt_generator import OptimizedPromptGenerator
+                generator = OptimizedPromptGenerator()
+                optimized_prompt = generator.generate_optimized_prompt(
+                    user_message=original_prompt,
+                    context_type="smart",  # Use smart context selection
+                    force_refresh=False
+                )
+                return optimized_prompt
+            except ImportError:
+                # Fallback to old prompt generator if optimized not available
+                from prompt_generator import prompt_generator
+                
+                # Generate auto-enhanced prompt with smart context (not comprehensive)
+                enhanced_prompt = prompt_generator.generate_enhanced_prompt(
+                    user_message=original_prompt,
+                    context_type="smart",  # Use smart instead of comprehensive
+                    force_refresh=False
+                )
+                
+                return enhanced_prompt
             
         except ImportError:
             # Fallback to original implementation if prompt generator not available

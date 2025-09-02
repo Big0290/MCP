@@ -44,6 +44,7 @@ class SmartContextInjector:
     
     def detect_tech_stack(self) -> Dict:
         """Automatically detect the tech stack of the current project"""
+        print("🔍 DEBUG: detect_tech_stack method called")
         logger.info(f"🔍 Detecting tech stack in: {self.project_path}")
         
         # Initialize detection results
@@ -60,27 +61,68 @@ class SmartContextInjector:
         }
         
         try:
+            print("🔍 DEBUG: Starting tech stack detection...")
             # Check for common project files
             project_files = self._scan_project_files()
+            print(f"🔍 DEBUG: Scanned {len(project_files)} files")
             
-            # Detect based on file patterns
+            # Detect based on file patterns with smart prioritization
+            # Check for multiple project types and prioritize the most likely one
+            detected_types = []
+            
+            print(f"🔍 DEBUG: Testing node project: {self._is_node_project(project_files)}")
+            if self._is_node_project(project_files):
+                print("🔍 DEBUG: Detecting node stack...")
+                detected_types.append(('node', self._detect_node_stack(project_files)))
+                print("🔍 DEBUG: Node detection completed")
+            
+            print(f"🔍 DEBUG: Testing python project: {self._is_python_project(project_files)}")
             if self._is_python_project(project_files):
-                stack_info.update(self._detect_python_stack(project_files))
-            elif self._is_node_project(project_files):
-                stack_info.update(self._detect_node_stack(project_files))
-            elif self._is_rust_project(project_files):
-                stack_info.update(self._detect_rust_stack(project_files))
-            elif self._is_go_project(project_files):
-                stack_info.update(self._detect_go_stack(project_files))
-            elif self._is_java_project(project_files):
-                stack_info.update(self._detect_java_stack(project_files))
-            elif self._is_php_project(project_files):
-                stack_info.update(self._detect_php_stack(project_files))
-            elif self._is_dotnet_project(project_files):
-                stack_info.update(self._detect_dotnet_stack(project_files))
+                print("🔍 DEBUG: Detecting python stack...")
+                detected_types.append(('python', self._detect_python_stack(project_files)))
+                print("🔍 DEBUG: Python detection completed")
+            if self._is_rust_project(project_files):
+                detected_types.append(('rust', self._detect_rust_stack(project_files)))
+            if self._is_go_project(project_files):
+                detected_types.append(('go', self._detect_go_stack(project_files)))
+            if self._is_java_project(project_files):
+                detected_types.append(('java', self._detect_java_stack(project_files)))
+            if self._is_php_project(project_files):
+                detected_types.append(('php', self._detect_php_stack(project_files)))
+            if self._is_dotnet_project(project_files):
+                detected_types.append(('dotnet', self._detect_dotnet_stack(project_files)))
             
-            # Calculate confidence score
-            stack_info["confidence_score"] = self._calculate_confidence(stack_info, project_files)
+            # Smart prioritization: prefer original project files over copied MCP files
+            if detected_types:
+                print(f"🔍 DEBUG: Found {len(detected_types)} project types: {[t[0] for t in detected_types]}")
+                logger.info(f"🔍 Found {len(detected_types)} project types: {[t[0] for t in detected_types]}")
+                
+                # Sort by confidence score and project type priority
+                def get_priority(item):
+                    project_type, stack_data = item
+                    confidence = stack_data.get('confidence_score', 0.0)
+                    logger.info(f"  {project_type}: base_confidence={confidence:.2f}")
+                    
+                    # Boost Node.js projects (common for web apps)
+                    if project_type == 'node':
+                        confidence += 0.2
+                        logger.info(f"    +0.2 boost for node = {confidence:.2f}")
+                    # Boost Python projects with MCP (legitimate MCP projects)
+                    elif project_type == 'python' and any('mcp' in f.lower() for f in project_files):
+                        confidence += 0.1
+                        logger.info(f"    +0.1 boost for python with MCP files = {confidence:.2f}")
+                    
+                    return confidence
+                
+                # Get the highest priority project type
+                best_type, best_stack = max(detected_types, key=get_priority)
+                logger.info(f"🎯 Selected {best_type} project (confidence: {best_stack.get('confidence_score', 0.0):.1%})")
+                stack_info.update(best_stack)
+            
+            # Confidence score is already calculated in the detection methods
+            # Only recalculate if no project type was detected
+            if stack_info["project_type"] == "unknown":
+                stack_info["confidence_score"] = self._calculate_confidence(stack_info, project_files)
             
             self.detected_stack = stack_info
             logger.info(f"✅ Detected stack: {stack_info['project_type']} ({stack_info['primary_language']})")
@@ -163,7 +205,7 @@ class SmartContextInjector:
         return any(any(indicator in f for indicator in dotnet_indicators) for f in files)
     
     def _detect_python_stack(self, files: List[str]) -> Dict:
-        """Detect Python-specific tech stack"""
+        """Detect Python-specific tech stack by analyzing file content"""
         stack = {
             "project_type": "python_project",
             "primary_language": "Python",
@@ -175,16 +217,6 @@ class SmartContextInjector:
             "testing": []
         }
         
-        # Check for frameworks
-        if any('django' in f.lower() for f in files):
-            stack["frameworks"].append("Django")
-        if any('flask' in f.lower() for f in files):
-            stack["frameworks"].append("Flask")
-        if any('fastapi' in f.lower() for f in files):
-            stack["frameworks"].append("FastAPI")
-        if any('streamlit' in f.lower() for f in files):
-            stack["frameworks"].append("Streamlit")
-        
         # Check for package managers
         if any('requirements.txt' in f for f in files):
             stack["package_managers"].append("pip")
@@ -193,14 +225,82 @@ class SmartContextInjector:
         if any('poetry.lock' in f for f in files):
             stack["package_managers"].append("poetry")
         
-        # Check for databases
-        if any('sqlite' in f.lower() for f in files):
-            stack["databases"].append("SQLite")
-        if any('postgres' in f.lower() for f in files):
-            stack["databases"].append("PostgreSQL")
-        if any('mysql' in f.lower() for f in files):
-            stack["databases"].append("MySQL")
+        # Analyze requirements.txt content for frameworks and libraries
+        requirements_file = next((f for f in files if 'requirements.txt' in f), None)
+        if requirements_file:
+            try:
+                with open(requirements_file, 'r') as f:
+                    content = f.read().lower()
+                    
+                    # Detect frameworks
+                    if 'django' in content:
+                        stack["frameworks"].append("Django")
+                    if 'flask' in content:
+                        stack["frameworks"].append("Flask")
+                    if 'fastapi' in content:
+                        stack["frameworks"].append("FastAPI")
+                    if 'streamlit' in content:
+                        stack["frameworks"].append("Streamlit")
+                    if 'fastmcp' in content:
+                        stack["frameworks"].append("FastMCP")
+                    
+                    # Detect databases
+                    if 'sqlite' in content or 'sqlalchemy' in content:
+                        stack["databases"].append("SQLite")
+                    if 'psycopg2' in content or 'postgresql' in content:
+                        stack["databases"].append("PostgreSQL")
+                    if 'mysql' in content or 'pymysql' in content:
+                        stack["databases"].append("MySQL")
+                    
+                    # Detect build tools
+                    if 'setuptools' in content:
+                        stack["build_tools"].append("setuptools")
+                    if 'wheel' in content:
+                        stack["build_tools"].append("wheel")
+                    if 'twine' in content:
+                        stack["build_tools"].append("twine")
+                    
+                    # Detect testing frameworks
+                    if 'pytest' in content:
+                        stack["testing"].append("pytest")
+                    if 'unittest' in content:
+                        stack["testing"].append("unittest")
+                    if 'nose' in content:
+                        stack["testing"].append("nose")
+                        
+            except Exception as e:
+                logger.warning(f"Could not read requirements.txt: {e}")
         
+        # Analyze pyproject.toml content
+        pyproject_file = next((f for f in files if 'pyproject.toml' in f), None)
+        if pyproject_file:
+            try:
+                with open(pyproject_file, 'r') as f:
+                    content = f.read().lower()
+                    
+                    # Detect build tools
+                    if 'poetry' in content:
+                        stack["build_tools"].append("poetry")
+                    if 'setuptools' in content:
+                        stack["build_tools"].append("setuptools")
+                    if 'flit' in content:
+                        stack["build_tools"].append("flit")
+                        
+            except Exception as e:
+                logger.warning(f"Could not read pyproject.toml: {e}")
+        
+        # Check for databases in filenames as fallback
+        if not stack["databases"]:
+            if any('sqlite' in f.lower() for f in files):
+                stack["databases"].append("SQLite")
+            if any('postgres' in f.lower() for f in files):
+                stack["databases"].append("PostgreSQL")
+            if any('mysql' in f.lower() for f in files):
+                stack["databases"].append("MySQL")
+
+        # Calculate confidence score for this detection
+        stack["confidence_score"] = self._calculate_confidence(stack, files)
+
         return stack
     
     def _detect_node_stack(self, files: List[str]) -> Dict:
@@ -277,6 +377,7 @@ class SmartContextInjector:
         if any('pnpm-lock.yaml' in f for f in files):
             stack["package_managers"].append("pnpm")
         
+
         return stack
     
     def _detect_rust_stack(self, files: List[str]) -> Dict:
@@ -320,6 +421,7 @@ class SmartContextInjector:
             except Exception as e:
                 logger.error(f"Error reading Cargo.toml: {e}")
         
+
         return stack
     
     def _detect_go_stack(self, files: List[str]) -> Dict:
@@ -363,6 +465,7 @@ class SmartContextInjector:
             except Exception as e:
                 logger.error(f"Error reading go.mod: {e}")
         
+
         return stack
     
     def _detect_java_stack(self, files: List[str]) -> Dict:
@@ -402,6 +505,7 @@ class SmartContextInjector:
             except Exception as e:
                 logger.error(f"Error reading pom.xml: {e}")
         
+
         return stack
     
     def _detect_php_stack(self, files: List[str]) -> Dict:
@@ -437,6 +541,7 @@ class SmartContextInjector:
             except Exception as e:
                 logger.error(f"Error reading composer.json: {e}")
         
+
         return stack
     
     def _detect_dotnet_stack(self, files: List[str]) -> Dict:
@@ -461,6 +566,7 @@ class SmartContextInjector:
             elif f.endswith('.fsproj'):
                 stack["primary_language"] = "F#"
         
+
         return stack
     
     def _calculate_confidence(self, stack_info: Dict, files: List[str]) -> float:
@@ -469,21 +575,35 @@ class SmartContextInjector:
         
         # Base confidence for project type detection
         if stack_info["project_type"] != "unknown":
-            confidence += 0.3
+            confidence += 0.4
         
-        # Confidence based on number of framework files
+        # Confidence based on number of framework files (more files = higher confidence)
         if len(files) > 0:
-            confidence += min(0.2, len(files) * 0.01)
+            confidence += min(0.3, len(files) * 0.05)
         
-        # Confidence based on specific indicators
+        # Confidence based on specific indicators (weighted by importance)
         if stack_info["frameworks"]:
             confidence += 0.2
         if stack_info["databases"]:
-            confidence += 0.1
+            confidence += 0.15
         if stack_info["build_tools"]:
             confidence += 0.1
         if stack_info["package_managers"]:
             confidence += 0.1
+        if stack_info["testing"]:
+            confidence += 0.05
+        
+        # Bonus for having multiple components detected
+        component_count = sum([
+            len(stack_info.get("frameworks", [])),
+            len(stack_info.get("databases", [])),
+            len(stack_info.get("build_tools", [])),
+            len(stack_info.get("package_managers", [])),
+            len(stack_info.get("testing", []))
+        ])
+        
+        if component_count > 0:
+            confidence += min(0.1, component_count * 0.02)
         
         return min(1.0, confidence)
     

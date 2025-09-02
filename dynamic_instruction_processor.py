@@ -43,7 +43,7 @@ class DynamicAgentMetadata:
     version: str = "1.0.0"
     mode: str = "Local development"
     personality_traits: List[str] = None
-    communication_style: str = "technical_expert"
+    communication_style: str = None  # Will be determined from user preferences
     last_updated: datetime = None
     
     def __post_init__(self):
@@ -61,6 +61,9 @@ class DynamicAgentMetadata:
                 "Context-aware",
                 "Adaptive"
             ]
+        if self.communication_style is None:
+            # Default to neutral if no user preferences are set
+            self.communication_style = "neutral"
         if self.last_updated is None:
             self.last_updated = datetime.now()
 
@@ -567,6 +570,9 @@ class DynamicInstructionProcessor:
         capabilities_str = ", ".join(metadata.capabilities)
         traits_str = ", ".join(metadata.personality_traits)
         
+        # Get communication style from user preferences if available
+        communication_style = self._get_communication_style_from_preferences()
+        
         return f"""Agent Metadata:
     - Friendly Name: {metadata.friendly_name}
     - Agent ID: {metadata.agent_id}
@@ -575,7 +581,7 @@ class DynamicInstructionProcessor:
     - Status: {metadata.status}
     - Version: {metadata.version}
     - Mode: {metadata.mode}
-    - Communication Style: {metadata.communication_style}
+    - Communication Style: {communication_style}
     - Personality: {traits_str}
     - Last Updated: {metadata.last_updated.strftime('%Y-%m-%d %H:%M:%S')}"""
     
@@ -612,6 +618,30 @@ class DynamicInstructionProcessor:
         formatted += f"    - Last Updated: {prefs.last_updated.strftime('%Y-%m-%d %H:%M:%S')}"
         
         return formatted
+    
+    def _get_communication_style_from_preferences(self) -> str:
+        """Get communication style from user preferences or return default"""
+        try:
+            # Try to get communication style from user preferences
+            from unified_preference_manager import get_user_preferences_unified
+            preferences = get_user_preferences_unified()
+            
+            # Look for communication style in the preferences
+            if "Communication style:" in preferences:
+                # Extract the style from the formatted preferences
+                lines = preferences.split('\n')
+                for line in lines:
+                    if "Communication style:" in line:
+                        style = line.split("Communication style:")[-1].strip()
+                        if style and style != "detailed":  # Avoid default fallback
+                            return style
+            
+            # If no user preference found, return neutral
+            return "neutral"
+            
+        except Exception as e:
+            # If there's any error, return neutral
+            return "neutral"
     
     def _load_agent_metadata(self) -> DynamicAgentMetadata:
         """Load agent metadata from file"""
